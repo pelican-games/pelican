@@ -21,5 +21,27 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(glm)
 target_link_libraries(pelican PUBLIC glm::glm)
 
+## OpenAL-soft
+FetchContent_Declare(
+	OpenAL
+	GIT_REPOSITORY	https://github.com/kcat/openal-soft
+)
+FetchContent_MakeAvailable(OpenAL)
+target_link_libraries(pelican PRIVATE OpenAL)
+set(OPENAL_LIBRARY ${openal_BINARY_DIR})
+set(OPENAL_INCLUDE_DIR ${openal_SOURCE_DIR}/include/AL)
+
+## FreeALUT
+FetchContent_Declare(
+	freealut
+	GIT_REPOSITORY	https://github.com/vancegroup/freealut
+)
+FetchContent_MakeAvailable(freealut)
+target_link_libraries(pelican PRIVATE alut)
+
+## Vulkan
+find_package(Vulkan REQUIRED)
+target_include_directories(pelican PRIVATE ${Vulkan_INCLUDE_DIRS})
+target_link_libraries(pelican PRIVATE ${Vulkan_LIBRARIES})
 
 add_subdirectory(example)

@@ -8,9 +8,11 @@ tiny game engine
 
 ## how to build
 
+command (Windows 64):
+
 ```
 mkdir build
 cd build
 cmake ..
-cmake --build .
+cmake --build . --config Release
 ```

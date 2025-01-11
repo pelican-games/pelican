@@ -5,6 +5,7 @@ project(pelican)
 include(FetchContent)
 
 add_library(pelican
+	STATIC
     src/system.cpp
 )
 target_include_directories(pelican PUBLIC include)
@@ -28,7 +29,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(OpenAL)
 target_link_libraries(pelican PRIVATE OpenAL)
-set(OPENAL_LIBRARY ${openal_BINARY_DIR})
+set(OPENAL_LIBRARY ${openal_BINARY_DIR}/Release/OpenAL32.lib)
 set(OPENAL_INCLUDE_DIR ${openal_SOURCE_DIR}/include/AL)
 
 ## FreeALUT

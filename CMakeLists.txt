@@ -40,6 +40,14 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(freealut)
 target_link_libraries(pelican PRIVATE alut)
 
+## GLFW
+FetchContent_Declare(
+	glfw
+	GIT_REPOSITORY	https://github.com/glfw/glfw
+)
+FetchContent_MakeAvailable(glfw)
+target_link_libraries(pelican PRIVATE glfw)
+
 ## Vulkan
 find_package(Vulkan REQUIRED)
 target_include_directories(pelican PRIVATE ${Vulkan_INCLUDE_DIRS})

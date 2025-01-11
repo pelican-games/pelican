@@ -16,3 +16,9 @@ cd build
 cmake ..
 cmake --build . --config Release
 ```
+
+## directories
+
+- `src`: source files
+- `include`: include headers
+- `example`: example apps

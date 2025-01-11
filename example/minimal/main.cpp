@@ -1,6 +1,11 @@
 #include <pelican/pelican.hpp>
+#include <iostream>
 int main() {
-    pl::system_init();
-    while(pl::frame_update()) {}
+    try {
+        pl::system_init();
+        while(pl::frame_update()) {}
+    } catch(std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
     return 0;
 }

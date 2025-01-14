@@ -6,6 +6,8 @@
 
 namespace pl {
 
+GLFWwindow *mainWindow;
+
 // 1回だけ呼ばれる
 void system_init() {
     glfwInit();
@@ -20,7 +22,7 @@ bool frame_update() {
     // キー入力状態の取得とか
 
     glfwPollEvents();
-    return !glfwWindowShouldClose(window);
+    return !glfwWindowShouldClose(mainWindow);
 }
 
 }

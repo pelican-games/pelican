@@ -11,6 +11,10 @@ add_library(pelican
 target_include_directories(pelican PUBLIC include)
 set_target_properties(pelican PROPERTIES CXX_STANDARD 20)
 
+if(MSVC)
+target_compile_options(pelican PUBLIC "/utf-8")
+endif()
+
 # Libralies
 
 ## glm

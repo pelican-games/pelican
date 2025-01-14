@@ -11,7 +11,7 @@ namespace pl {
 
     class Key {
         bool down();
-        bool up()Å@;
+        bool up();
         bool pressed();
     };
 

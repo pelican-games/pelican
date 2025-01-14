@@ -1,6 +1,8 @@
 #include <pelican/Audio.hpp>
 #include <stdexcept>
 #include <AL/alut.h>
+#include <iostream>
+#include <cassert>
 
 namespace pl {
 
@@ -12,7 +14,7 @@ namespace pl {
     void Audio::loadAudio(std::filesystem::path& path) {
         bufferID = alutCreateBufferFromFile(path.string().c_str());
         if (bufferID == AL_NONE) {
-            throw std::runtime_error("Failed to load audio file: " + path.string());
+           throw std::runtime_error("Failed to load audio file: " + path.string());
         }
     }
 

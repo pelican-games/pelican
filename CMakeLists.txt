@@ -7,9 +7,12 @@ include(FetchContent)
 add_library(pelican
 	STATIC
     src/system.cpp
+	src/audio.cpp
+	src/speaker.cpp
 )
 target_include_directories(pelican PUBLIC include)
 set_target_properties(pelican PROPERTIES CXX_STANDARD 20)
+
 
 # Libralies
 
@@ -54,3 +57,10 @@ target_include_directories(pelican PRIVATE ${Vulkan_INCLUDE_DIRS})
 target_link_libraries(pelican PRIVATE ${Vulkan_LIBRARIES})
 
 add_subdirectory(example)
+
+# Add the test application
+add_executable(test_app src/test.cpp)
+target_include_directories(test_app PRIVATE include)
+target_link_libraries(test_app PRIVATE pelican OpenAL alut glfw Vulkan::Vulkan)
+set_target_properties(test_app PROPERTIES CXX_STANDARD 20)
+

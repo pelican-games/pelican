@@ -3,6 +3,7 @@
 #include <AL/alut.h>
 #include <vulkan/vulkan.hpp>
 #include <glm/glm.hpp>
+#include <btBulletDynamicsCommon.h>
 
 namespace pl {
 

@@ -18,38 +18,19 @@ endif()
 # Libralies
 
 ## glm
-FetchContent_Declare(
-	glm
-	GIT_REPOSITORY	https://github.com/g-truc/glm.git
-	GIT_TAG 	bf71a834948186f4097caa076cd2663c69a10e1e #refs/tags/1.0.1
-)
-FetchContent_MakeAvailable(glm)
+find_package(glm CONFIG REQUIRED)
 target_link_libraries(pelican PUBLIC glm::glm)
 
 ## OpenAL-soft
-FetchContent_Declare(
-	OpenAL
-	GIT_REPOSITORY	https://github.com/kcat/openal-soft
-)
-FetchContent_MakeAvailable(OpenAL)
-target_link_libraries(pelican PRIVATE OpenAL)
-set(OPENAL_LIBRARY ${openal_BINARY_DIR}/Release/OpenAL32.lib)
-set(OPENAL_INCLUDE_DIR ${openal_SOURCE_DIR}/include/AL)
+find_package(OpenAL CONFIG REQUIRED)
+target_link_libraries(pelican PRIVATE OpenAL::OpenAL)
 
 ## FreeALUT
-FetchContent_Declare(
-	freealut
-	GIT_REPOSITORY	https://github.com/vancegroup/freealut
-)
-FetchContent_MakeAvailable(freealut)
-target_link_libraries(pelican PRIVATE alut)
+find_package(FreeALUT CONFIG REQUIRED)
+target_link_libraries(pelican PRIVATE FreeALUT::alut)
 
 ## GLFW
-FetchContent_Declare(
-	glfw
-	GIT_REPOSITORY	https://github.com/glfw/glfw
-)
-FetchContent_MakeAvailable(glfw)
+find_package(glfw3 CONFIG REQUIRED)
 target_link_libraries(pelican PRIVATE glfw)
 
 ## Vulkan
@@ -58,3 +39,9 @@ target_include_directories(pelican PRIVATE ${Vulkan_INCLUDE_DIRS})
 target_link_libraries(pelican PRIVATE ${Vulkan_LIBRARIES})
 
 add_subdirectory(example)
+
+## Bullet Physics
+find_package(Bullet CONFIG REQUIRED)
+# specific set: BulletSoftBody, BulletDynamics, BulletInverseDynamics,
+#               BulletCollision, Bullet3Common, LinearMath
+target_link_libraries(pelican PRIVATE ${BULLET_LIBRARIES})

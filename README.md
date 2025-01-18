@@ -8,14 +8,15 @@ tiny game engine
 
 ## how to build
 
-command (Windows 64):
+command(bash):
 
 ```
-mkdir build
-cd build
-cmake ..
-cmake --build . --config Release
+vcpkg install
+cmake . -B build -DCMAKE_TOOLCHAIN_FILE=(VCPKG_ROOT)/scripts/buildsystems/vcpkg.cmake
+cmake --build ./build/
 ```
+
+Replace `(VCPKG_ROOT)` properly.
 
 ## directories
 

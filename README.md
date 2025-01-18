@@ -5,10 +5,11 @@ tiny game engine
 ## dependency
 
 - [Vulkan SDK](https://vulkan.lunarg.com/sdk/home)
+- [vcpkg](https://github.com/microsoft/vcpkg)
 
 ## how to build
 
-command(bash):
+command:
 
 ```
 vcpkg install

@@ -7,6 +7,7 @@ include(FetchContent)
 add_library(pelican
 	STATIC
     src/system.cpp
+    src/vulkan/model_load.cpp
 )
 target_include_directories(pelican PUBLIC include)
 set_target_properties(pelican PROPERTIES CXX_STANDARD 20)
@@ -37,6 +38,10 @@ target_link_libraries(pelican PRIVATE glfw)
 find_package(Vulkan REQUIRED)
 target_include_directories(pelican PRIVATE ${Vulkan_INCLUDE_DIRS})
 target_link_libraries(pelican PRIVATE ${Vulkan_LIBRARIES})
+
+## tinygltf
+find_path(TINYGLTF_INCLUDE_DIRS "tiny_gltf.h")
+target_include_directories(pelican PRIVATE ${TINYGLTF_INCLUDE_DIRS})
 
 add_subdirectory(example)
 

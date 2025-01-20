@@ -9,6 +9,9 @@
           "name": "glm"
         },
         {
+          "name": "tinygltf"
+        },
+        {
           "name": "openal-soft"
         },
         {

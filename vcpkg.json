@@ -1,24 +1,27 @@
 {
-    "name": "fmt",
-    "version": "0.1.0",
-    "description": "tiny gameengine",
-    "homepage": "https://github.com/pelican-games/pelican",
-    "license": "MIT",
-    "dependencies": [
-        {
-          "name": "glm"
-        },
-        {
-          "name": "openal-soft"
-        },
-        {
-          "name": "freealut"
-        },
-        {
-          "name": "glfw3"
-        },
-        {
-          "name": "bullet3"
-        }
-    ]
+  "name": "fmt",
+  "version": "0.1.0",
+  "description": "tiny gameengine",
+  "homepage": "https://github.com/pelican-games/pelican",
+  "license": "MIT",
+  "dependencies": [
+    {
+      "name": "glm"
+    },
+    {
+      "name": "openal-soft"
+    },
+    {
+      "name": "freealut"
+    },
+    {
+      "name": "glfw3"
+    },
+    {
+      "name": "bullet3"
+    },
+    {
+      "name": "tinygltf"
+    }
+  ]
 }

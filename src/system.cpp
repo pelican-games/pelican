@@ -1,29 +1,22 @@
-#include <pelican/pelican.hpp>
+#include "pelican/system.hpp"
 #include <GLFW/glfw3.h>
 #include <AL/alut.h>
 #include <vulkan/vulkan.hpp>
 #include <glm/glm.hpp>
-#include <btBulletDynamicsCommon.h>
+#include <iostream>
+#include <pelican/audio.hpp>
+#include <pelican/speaker.hpp>
+#include <pelican/physics.hpp>
 
 namespace pl {
+	void startGame() {
 
-GLFWwindow *mainWindow;
+	}
+	void stopGame() {
 
-// 1回だけ呼ばれる
-void system_init() {
-    glfwInit();
+	}
+	void resetGame() {
 
-    // ウィンドウの作成とか
-    // Vulkanその他の初期化とか
-}
+	}
 
-// 毎フレーム呼ばれる
-bool frame_update() {
-    // 描画とか
-    // キー入力状態の取得とか
-
-    glfwPollEvents();
-    return !glfwWindowShouldClose(mainWindow);
-}
-
-}
+} // namespace pl

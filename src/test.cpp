@@ -4,16 +4,16 @@
 #include <thread>
 #include <GLFW/glfw3.h>
 
-bool isPlaying = false; // ‰¹Šy‚ÌÄ¶ó‘Ô‚ğŠÇ—‚·‚éƒtƒ‰ƒO
+bool isPlaying = false; // éŸ³æ¥½ã®å†ç”ŸçŠ¶æ…‹ã‚’ç®¡ç†ã™ã‚‹ãƒ•ãƒ©ã‚°
 
 void toggleAudio(pl::Speaker& speaker) {
     if (isPlaying) {
-        // ‰¹Šy‚ğ’â~
+        // éŸ³æ¥½ã‚’åœæ­¢
         speaker.stop();
         std::cout << "Audio stopped." << std::endl;
     }
     else {
-        // ‰¹Šy‚ğÄ¶
+        // éŸ³æ¥½ã‚’å†ç”Ÿ
         speaker.play();
         std::cout << "Audio playing." << std::endl;
     }
@@ -25,14 +25,14 @@ int main() {
         //GLFWwindow* window = nullptr;
         //pl::system_init();
 
-        // OpenAL ‰Šú‰»
+        // OpenAL åˆæœŸåŒ–
         alutInit(nullptr, nullptr);
         ALuint hellobuffer = alutCreateBufferHelloWorld(), hellosource;
         alGenSources(1, &hellosource);
         alSourcei(hellosource, AL_BUFFER, hellobuffer);
         alSourcePlay(hellosource);
         
-        // ƒI[ƒfƒBƒIƒtƒ@ƒCƒ‹‚ğƒ[ƒh
+        // ã‚ªãƒ¼ãƒ‡ã‚£ã‚ªãƒ•ã‚¡ã‚¤ãƒ«ã‚’ãƒ­ãƒ¼ãƒ‰
         pl::Audio audio;
         std::cout << "Which Audio do you want?" << std::endl;
         std::string audio_name;
@@ -64,32 +64,32 @@ int main() {
         }*/
 
         /*
-        // ƒXƒs[ƒJ[‚ğİ’è
+        // ã‚¹ãƒ”ãƒ¼ã‚«ãƒ¼ã‚’è¨­å®š
         pl::Speaker speaker;
         speaker.set(audio);
-        speaker.setVolume(1.0f); // ‰¹—Ê‚ğÅ‘å‚Éİ’è
-        speaker.setLoop(true);   // ƒ‹[ƒvÄ¶‚ğ—LŒø‰»
-        // ƒVƒXƒeƒ€‰Šú‰»iGLFW ƒEƒBƒ“ƒhƒEì¬‚È‚Çj
-        // ƒƒCƒ“ƒ‹[ƒv
+        speaker.setVolume(1.0f); // éŸ³é‡ã‚’æœ€å¤§ã«è¨­å®š
+        speaker.setLoop(true);   // ãƒ«ãƒ¼ãƒ—å†ç”Ÿã‚’æœ‰åŠ¹åŒ–
+        // ã‚·ã‚¹ãƒ†ãƒ åˆæœŸåŒ–ï¼ˆGLFW ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ä½œæˆãªã©ï¼‰
+        // ãƒ¡ã‚¤ãƒ³ãƒ«ãƒ¼ãƒ—
         std::cout << "Press SPACE to toggle audio playback. Press ESC to exit." << std::endl;
         while (pl::frame_update()) {
-            // ƒXƒy[ƒXƒL[‚Å‰¹Šy‚ÌÄ¶/’â~‚ğØ‚è‘Ö‚¦
+            // ã‚¹ãƒšãƒ¼ã‚¹ã‚­ãƒ¼ã§éŸ³æ¥½ã®å†ç”Ÿ/åœæ­¢ã‚’åˆ‡ã‚Šæ›¿ãˆ
             if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
                 toggleAudio(speaker);
 
-                // ƒL[‚Ì‰Ÿ‰º‚ğ1‰ñ•ª‚¾‚¯ˆ—
+                // ã‚­ãƒ¼ã®æŠ¼ä¸‹ã‚’1å›åˆ†ã ã‘å‡¦ç†
                 while (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 }
             }
 
-            // ESCƒL[‚ÅƒEƒBƒ“ƒhƒE‚ğ•Â‚¶‚é
+            // ESCã‚­ãƒ¼ã§ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã‚’é–‰ã˜ã‚‹
             if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
                 break;
             }
         }
 
-        // ƒNƒŠ[ƒ“ƒAƒbƒv
+        // ã‚¯ãƒªãƒ¼ãƒ³ã‚¢ãƒƒãƒ—
         pl::cleanup();
         alutExit();
         std::cout << "Application terminated gracefully." << std::endl;

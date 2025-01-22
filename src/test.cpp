@@ -347,15 +347,13 @@ int main() {
 
 int main() {
     auto window = pl::systemInit(HEIGHT,WIDTH);
-    //pl::System& system = pl::System::instance();
+
     std::cout << "Game is Start now!" << std::endl;
-    //system.startGame();
     btDiscreteDynamicsWorld* dynamicsWorld;
     btBroadphaseInterface* broadphase;
     btDefaultCollisionConfiguration* collisionConfiguration;
     btCollisionDispatcher* dispatcher;
     btSequentialImpulseConstraintSolver* solver;
-
     pl::setupWorld(dynamicsWorld, broadphase, collisionConfiguration, dispatcher, solver);
     pl::MagneticBall ball(dynamicsWorld, 1.0f, 1.0f, 1.0f, 0);
     btVector3 initialVelocity(5.0f, 0.0f, 0.0f);

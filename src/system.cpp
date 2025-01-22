@@ -1,5 +1,6 @@
 #include "pelican/system.hpp"
 #include <GLFW/glfw3.h>
+#include <filesystem>
 #include <AL/alut.h>
 #include <vulkan/vulkan.hpp>
 #include <glm/glm.hpp>
@@ -9,12 +10,52 @@
 #include "pelican/physics.hpp"
 
 namespace pl {
+    void startGame() {
 
-    System& System::instance() {
-        static System instance;
-        return instance;
     }
-    System::System() {
+
+    void pauseGame() {
+
+    }
+
+    void restartGame() {
+
+    }
+
+    void endGame() {
+
+    }
+
+    void loadStage(std::string stageinfopath) {
+        std::filesystem::path path = std::filesystem::current_path() / stageinfopath;
+
+        if (!std::filesystem::exists(path)) {
+            std::cerr << "Error: Stage file does not exists." << std::endl;
+            return;
+        }
+        
+    }
+    void restartStage(std::string stageinfopath) {
+        std::filesystem::path path = std::filesystem::current_path() / stageinfopath;
+        if (!std::filesystem::exists(path)) {
+            std::cerr << "Error: Stage file does not exists." << std::endl;
+            return;
+        }
+    }
+
+    void saveGamestate(std::string savepath) {
+        std::filesystem::path path = std::filesystem::current_path() / savepath;
+        if (!std::filesystem::exists(path)) {
+            std::cerr << "Error: Stage file does not exists." << std::endl;
+            return;
+        }
+    }
+    void loadGamestate(std::string loadpath) {
+        std::filesystem::path path = std::filesystem::current_path() / loadpath;
+        if (!std::filesystem::exists(path)) {
+            std::cerr << "Error: Stage file does not exists." << std::endl;
+            return;
+        }
 
     }
 } // namespace pl

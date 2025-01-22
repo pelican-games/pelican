@@ -3,3 +3,10 @@ add_executable(example_minimum
 )
 target_link_libraries(example_minimum PRIVATE pelican)
 set_target_properties(example_minimum PROPERTIES CXX_STANDARD 20)
+
+add_executable(example_simple_render
+    simple_render/main.cpp
+)
+target_link_libraries(example_simple_render PRIVATE pelican)
+set_target_properties(example_simple_render PROPERTIES CXX_STANDARD 20)
+

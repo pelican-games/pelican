@@ -17,7 +17,10 @@ class Cursor {
     void getPos();
 };
 
-class Model {};
+struct ModelData;
+struct Model {
+    const pl::ModelData* pDat;
+};
 Model loadModel(std::filesystem::path path);
 
 class Renderer {

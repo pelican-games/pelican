@@ -10,6 +10,8 @@ add_library(pelican
     src/model.cpp
     src/vulkan/model_db.cpp
     src/vulkan/renderer.cpp
+	src/audio.cpp
+	src/speaker.cpp
 )
 target_include_directories(pelican PUBLIC include)
 set_target_properties(pelican PROPERTIES CXX_STANDARD 20)
@@ -52,3 +54,10 @@ find_package(Bullet CONFIG REQUIRED)
 # specific set: BulletSoftBody, BulletDynamics, BulletInverseDynamics,
 #               BulletCollision, Bullet3Common, LinearMath
 target_link_libraries(pelican PRIVATE ${BULLET_LIBRARIES})
+# Add the test application
+add_executable(test_app src/test.cpp)
+target_include_directories(test_app PRIVATE include)
+target_link_libraries(test_app PRIVATE pelican OpenAL::OpenAL FreeALUT::alut glfw Vulkan::Vulkan)
+set_target_properties(test_app PROPERTIES CXX_STANDARD 20)
+
+

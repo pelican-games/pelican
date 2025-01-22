@@ -5,20 +5,21 @@
 #include <cassert>
 
 namespace pl {
-
-    void Audio::loadAudio(std::filesystem::path& path) {
-        bufferID = alutCreateBufferFromFile(path.string().c_str());
+    void Audio::initAudio() {
+        alutInit(nullptr, nullptr);
+    }
+    void Audio::loadAudio(std::filesystem::path path,std::string audio_name) {
+        bufferID = alutCreateBufferFromFile((path /audio_name).string().c_str());
         if (bufferID == AL_NONE) {
            throw std::runtime_error("Failed to load audio file: " + path.string());
         }
-        ALuint audio_source;
-        alGenSources(1, &audio_source);
-        alSourcei(audio_source, AL_BUFFER, bufferID);
-
     }
-
-    unsigned int Audio::getBufferID() const {
+    unsigned int Audio::getBufferID() {
         return bufferID;
+    }
+    void Audio::destAudio() {
+        alutSleep(1);
+        alutExit();
     }
 
 } // namespace pl

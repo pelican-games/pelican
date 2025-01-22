@@ -5,10 +5,12 @@
 
 namespace pl {
 
-    struct Audio {
+    class Audio {
     public:
-        void loadAudio(std::filesystem::path& path);
-        unsigned int getBufferID() const;
+        void initAudio();
+        void loadAudio(std::filesystem::path path,std::string audio_name);
+        unsigned int getBufferID();
+        void destAudio();
     private:
         unsigned int bufferID = 0;
     };

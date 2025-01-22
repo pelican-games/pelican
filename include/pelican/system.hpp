@@ -11,7 +11,6 @@ namespace pl {
         void startGame();
         void stopGame();
         void resetGame();
-        void respawnBall();
 
         static System& instance();
         ~System();

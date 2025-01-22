@@ -4,9 +4,9 @@
 #include <vulkan/vulkan.hpp>
 #include <glm/glm.hpp>
 #include <iostream>
-#include <pelican/audio.hpp>
-#include <pelican/speaker.hpp>
-#include <pelican/physics.hpp>
+#include "pelican/audio.hpp"
+#include "pelican/speaker.hpp"
+#include "pelican/physics.hpp"
 
 namespace pl {
 	void startGame() {

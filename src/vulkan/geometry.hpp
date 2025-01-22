@@ -61,7 +61,7 @@ struct Material {
 struct Primitive {
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
-    uint32_t materialIndex;
+    Material* material;
 };
 
 struct Mesh {
@@ -76,7 +76,7 @@ struct Transform {
 
 struct Object {
     bool Instance;
-    Mesh mesh;
+    Mesh* mesh;
     std::vector<glm::mat4> model;
 
     static vk::VertexInputBindingDescription getBindingDescription() {

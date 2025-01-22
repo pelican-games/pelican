@@ -7,7 +7,7 @@ include(FetchContent)
 add_library(pelican
 	STATIC
     src/system.cpp
-    src/vulkan/model_load.cpp
+    src/vulkan/model_db.cpp
 )
 target_include_directories(pelican PUBLIC include)
 set_target_properties(pelican PROPERTIES CXX_STANDARD 20)

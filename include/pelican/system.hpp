@@ -8,9 +8,18 @@ namespace pl {
 
     class System {
     public:
+        //ゲームそのものに関するもの
         void startGame();
-        void stopGame();
-        void resetGame();
+        void pauseGame();
+        void restartGame();
+        void endGame();
+        //ステージなどに関するもの
+        void loadStage(std::string stageinfopath);
+        void restartStage(std::string stageinfopath);
+        //セーブ、ロード
+        void saveGamestate(std::string savepath);
+        void loadGamestate(std::string loadpath);
+
 
         static System& instance();
         ~System();

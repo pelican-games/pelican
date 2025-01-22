@@ -4,13 +4,12 @@
 #include<GLFW/glfw3.h>
 
 namespace pl {
-	class Boot {
-	public:
-		GLFWwindow* systemInit(unsigned int Windowheight,unsigned int Windowwidth);
-		void systemClean();
-		bool frameUpdate();
+	GLFWwindow* systemInit(unsigned int Windowheight,unsigned int Windowwidth);
 
-	};
+	void systemClean(GLFWwindow* &window);
+
+	bool frameUpdate(GLFWwindow* &window);
+
 }
 #endif
 

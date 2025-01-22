@@ -15,10 +15,11 @@ namespace pl {
             glfwTerminate();
             throw std::runtime_error("Failed to create GLFW window");
         }
+        return window;
     }
 
     // 毎フレーム呼ばれる
-    bool frame_update(GLFWwindow* window) {
+    bool frameUpdate(GLFWwindow*& window) {
         if (!window) {
             throw std::runtime_error("Window is not initialized.");
         }
@@ -29,7 +30,7 @@ namespace pl {
     }
 
     // クリーンアップ処理
-    void cleanup(GLFWwindow* window) {
+    void systemClean(GLFWwindow*& window) {
         if (window) {
             glfwDestroyWindow(window);
             glfwTerminate();

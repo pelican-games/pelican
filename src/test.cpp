@@ -7,7 +7,9 @@
 #include <filesystem>
 #include "tiny_gltf.h"
 #include <btBulletDynamicsCommon.h>
-struct Vertex {
+using namespace pl;
+constexpr unsigned int WIDTH = 800, HEIGHT = 1200;
+/*struct Vertex {
     glm::vec3 position;
     glm::vec3 normal;
     glm::vec4 tangent;
@@ -153,7 +155,8 @@ void setupWorld(btDiscreteDynamicsWorld*& dynamicsWorld, btBroadphaseInterface*&
     dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
     dynamicsWorld->setGravity(btVector3(0, 0, 0));
 }
-// レンダラーのGeomerty.hppを読み込んでやります
+
+//レンダラーのGeomerty.hppを読み込んでやります
 btRigidBody* createConvexHullRigidBody(const Mesh& mesh, float mass, const btVector3& position) {
     // Convex Hull Shapeを作成
     btConvexHullShape* convexShape = new btConvexHullShape();
@@ -340,4 +343,31 @@ int main() {
 
     cleanupWorld(dynamicsWorld, spheres, broadphase, collisionConfiguration, dispatcher, solver);
     return 0;
+}*/
+
+int main() {
+    auto window = pl::systemInit(HEIGHT,WIDTH);
+    //pl::System& system = pl::System::instance();
+    std::cout << "Game is Start now!" << std::endl;
+    //system.startGame();
+    btDiscreteDynamicsWorld* dynamicsWorld;
+    btBroadphaseInterface* broadphase;
+    btDefaultCollisionConfiguration* collisionConfiguration;
+    btCollisionDispatcher* dispatcher;
+    btSequentialImpulseConstraintSolver* solver;
+
+    pl::setupWorld(dynamicsWorld, broadphase, collisionConfiguration, dispatcher, solver);
+    pl::MagneticBall ball(dynamicsWorld, 1.0f, 1.0f, 1.0f, 0);
+    btVector3 initialVelocity(5.0f, 0.0f, 0.0f);
+    ball.rigidbody->setLinearVelocity(initialVelocity);
+    while (pl::frameUpdate(window)) {
+        btVector3 force(10.0f, 0, 0);
+        ball.rigidbody->applyCentralForce(force);
+        btTransform transform;
+        ball.rigidbody->getMotionState()->getWorldTransform(transform);
+        std::cout << transform.getOrigin().getX() << " " << transform.getOrigin().getY() << " " << transform.getOrigin().getZ() << std::endl;
+        dynamicsWorld->stepSimulation(1 / 60.f, 10);
+    }
+    pl::systemClean(window);
+    std::cout << "Game is correctly End." << std::endl;
 }

@@ -9,14 +9,12 @@
 #include "pelican/physics.hpp"
 
 namespace pl {
-	void startGame() {
 
-	}
-	void stopGame() {
+    System& System::instance() {
+        static System instance;
+        return instance;
+    }
+    System::System() {
 
-	}
-	void resetGame() {
-
-	}
-
+    }
 } // namespace pl

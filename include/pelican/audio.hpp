@@ -7,8 +7,6 @@ namespace pl {
 
     struct Audio {
     public:
-        Audio();
-
         void loadAudio(std::filesystem::path& path);
         unsigned int getBufferID() const;
     private:

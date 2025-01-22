@@ -6,7 +6,7 @@
 
 namespace pl {
 
-    void Audio::loadAudio(std::filesystem::path& path,ALuint& audio) {
+    void Audio::loadAudio(std::filesystem::path& path) {
         bufferID = alutCreateBufferFromFile(path.string().c_str());
         if (bufferID == AL_NONE) {
            throw std::runtime_error("Failed to load audio file: " + path.string());

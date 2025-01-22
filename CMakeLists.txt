@@ -55,7 +55,7 @@ target_link_libraries(pelican PRIVATE ${BULLET_LIBRARIES})
 # Add the test application
 add_executable(test_app src/test.cpp)
 target_include_directories(test_app PRIVATE include)
-target_link_libraries(test_app PRIVATE pelican OpenAL alut glfw Vulkan::Vulkan)
+target_link_libraries(test_app PRIVATE pelican OpenAL::OpenAL FreeALUT::alut glfw Vulkan::Vulkan)
 set_target_properties(test_app PROPERTIES CXX_STANDARD 20)
 
 

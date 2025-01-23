@@ -16,6 +16,7 @@ class ModelLoader {
 
     ModelDataBase &db;
     std::vector<pl::Material *> p_materials;
+    pl::ModelData* p_model;
     tinygltf::Model model;
 
     template <uint32_t expectType, uint32_t expectComponentType, class F>
@@ -185,12 +186,20 @@ class ModelLoader {
         for (const auto nodeIndex : defaultScene.nodes) {
             load_node(mesh, model.nodes[nodeIndex]);
         }
+
+        pl::ModelData model;
+        model.meshes.push_back(mesh);
+
+        db.models.emplace_front(std::move(model));
+        p_model = &db.models.front();
     }
+
+    pl::ModelData* getModel() const { return p_model; }
 };
 
 const pl::ModelData *ModelDataBase::load_model(std::filesystem::path file_path) {
     ModelLoader loader{*this, file_path};
-    return &models.front();
+    return loader.getModel();
 }
 
 } // namespace pl

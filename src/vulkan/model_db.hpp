@@ -10,6 +10,8 @@ struct ObjectDataBase {
 };
 
 struct ModelData {
+    std::vector<pl::Mesh> meshes;
+
     void add_object(ObjectDataBase& objDb);
 };
 

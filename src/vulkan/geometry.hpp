@@ -78,6 +78,11 @@ struct InstanceAttribute {
     glm::mat4 model;
 };
 
+struct InstanceUpdate {
+    std::vector<InstanceAttribute> sphere;
+    std::vector<InstanceAttribute> module;
+}
+
 struct Object {
     bool Instance;
     Mesh* mesh;
@@ -98,3 +103,4 @@ struct Object {
 };
 
 }
+

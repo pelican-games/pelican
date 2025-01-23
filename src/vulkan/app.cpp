@@ -99,7 +99,7 @@ VulkanApp::VulkanApp(GLFWwindow *window, unsigned int screenWidth, unsigned int 
     image = createImage(screenWidth, screenHeight, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled);
 
     // バッファの作成
-    // setBuffer(scene);
+    setBuffer();
 
     // シェーダーモジュールの作成
     vk::UniqueShaderModule vertShaderModule = createShaderModule("shaders/shader.vert.spv");
@@ -354,7 +354,9 @@ std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory> VulkanApp::createBuffer(vk::
     return std::make_pair(std::move(buffer), std::move(bufferMemory));
 }
 
-void VulkanApp::setBuffer(std::vector<Object> scene) {
+void VulkanApp::setBuffer() {
+    scene = objDb.objects;
+
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
 
@@ -509,6 +511,10 @@ void VulkanApp::drawFrame() {
     graphicsQueues.at(0).presentKHR(presentInfo);
 
     graphicsQueues.at(0).waitIdle();
+}
+
+setObjectData() {
+
 }
 
 void VulkanApp::drawModel(const Model &model, glm::mat4x4 modelMatrix) {

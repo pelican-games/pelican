@@ -8,7 +8,7 @@ int main() {
         pl::Model test_model = renderer.loadModel("example/assets/test.glb");
         while(sys.frameUpdate()) {
             renderer.setCamera(glm::vec3(2.0, 0.0, 0.0), glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
-            renderer.drawModel(test_model, glm::mat4x4());
+            renderer.setObjectData();
         }
     } catch(std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;

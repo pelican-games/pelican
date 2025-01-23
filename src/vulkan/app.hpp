@@ -11,6 +11,7 @@ class VulkanApp : public pl::Renderer {
         unsigned int screenWidth, screenHeight;
         GLFWwindow* window;
 
+        pl::ObjectDataBase objDb;
         pl::ModelDataBase modelDb;
 
     public:
@@ -73,13 +74,15 @@ class VulkanApp : public pl::Renderer {
 
         //頂点バッファの作成
         std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory> createBuffer(vk::BufferCreateFlags flags, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
-        void setBuffer(std::vector<Object> scene);
+        void setBuffer();
         
     public:
         //レンダリング
         void drawFrame() override;
 
-        void drawModel(const Model &model, glm::mat4x4 modelMatrix) override;
+        //void drawModel(const Model &model, glm::mat4x4 modelMatrix) override;
+
+        void setObjectData(std::vector<InstanceAttribute>) override;
         void setCamera(glm::vec3 pos, glm::vec3 dir, glm::vec3 up) override;
         void setProjection(float horizontalAngle) override;
         pl::Model loadModel(std::filesystem::path file_path) override;

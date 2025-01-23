@@ -110,8 +110,8 @@ void VulkanApp::initVulkan() {
     // setBuffer(scene);
 
     // シェーダーモジュールの作成
-    vk::UniqueShaderModule vertShaderModule = createShaderModule("../shaders/shader.vert.spv");
-    vk::UniqueShaderModule fragShaderModule = createShaderModule("../shaders/shader.frag.spv");
+    vk::UniqueShaderModule vertShaderModule = createShaderModule("shaders/shader.vert.spv");
+    vk::UniqueShaderModule fragShaderModule = createShaderModule("shaders/shader.frag.spv");
 
     // パイプラインの作成
     std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = {

@@ -4,22 +4,21 @@
 
 namespace pl {
     // 1回だけ呼ばれる
-    GLFWwindow* systemInit(unsigned int Windowheight, unsigned int Windowwidth) {
+    System::System(unsigned int Windowheight, unsigned int Windowwidth) {
         if (!glfwInit()) {
             throw std::runtime_error("Failed to initialize GLFW");
         }
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        GLFWwindow* window = glfwCreateWindow(Windowheight, Windowwidth, "Pelican Vulkan Window", nullptr, nullptr);
+        window = glfwCreateWindow(Windowheight, Windowwidth, "Pelican Vulkan Window", nullptr, nullptr);
         if (!window) {
             glfwTerminate();
             throw std::runtime_error("Failed to create GLFW window");
         }
-        return window;
     }
 
     // 毎フレーム呼ばれる
-    bool frameUpdate(GLFWwindow*& window) {
+    bool System::frameUpdate() {
         if (!window) {
             throw std::runtime_error("Window is not initialized.");
         }
@@ -30,7 +29,7 @@ namespace pl {
     }
 
     // クリーンアップ処理
-    void systemClean(GLFWwindow*& window) {
+    System::~System() {
         if (window) {
             glfwDestroyWindow(window);
             glfwTerminate();

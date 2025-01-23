@@ -346,7 +346,7 @@ int main() {
 }*/
 
 int main() {
-    auto window = pl::systemInit(HEIGHT,WIDTH);
+    pl::System sys(HEIGHT,WIDTH);
 
     std::cout << "Game is Start now!" << std::endl;
     btDiscreteDynamicsWorld* dynamicsWorld;
@@ -358,7 +358,7 @@ int main() {
     pl::MagneticBall ball(dynamicsWorld, 1.0f, 1.0f, 1.0f, 0);
     btVector3 initialVelocity(5.0f, 0.0f, 0.0f);
     ball.rigidbody->setLinearVelocity(initialVelocity);
-    while (pl::frameUpdate(window)) {
+    while (sys.frameUpdate()) {
         btVector3 force(10.0f, 0, 0);
         ball.rigidbody->applyCentralForce(force);
         btTransform transform;
@@ -366,6 +366,5 @@ int main() {
         std::cout << transform.getOrigin().getX() << " " << transform.getOrigin().getY() << " " << transform.getOrigin().getZ() << std::endl;
         dynamicsWorld->stepSimulation(1 / 60.f, 10);
     }
-    pl::systemClean(window);
     std::cout << "Game is correctly End." << std::endl;
 }

@@ -2,8 +2,8 @@
 #include <iostream>
 int main() {
     try {
-        pl::system_init();
-        while(pl::frame_update()) {}
+        pl::System sys(800, 600);
+        while(sys.frameUpdate()) {}
     } catch(std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
     }

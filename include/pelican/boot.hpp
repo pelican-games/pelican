@@ -4,11 +4,15 @@
 #include<GLFW/glfw3.h>
 
 namespace pl {
-	GLFWwindow* systemInit(unsigned int Windowheight,unsigned int Windowwidth);
 
-	void systemClean(GLFWwindow* &window);
+class System {
+	GLFWwindow* window;
+public:
+	System(unsigned int Windowheight,unsigned int Windowwidth);
+	~System();
 
-	bool frameUpdate(GLFWwindow* &window);
+	bool frameUpdate();
+};
 
 }
 #endif

@@ -10,6 +10,7 @@ add_library(pelican
     src/model.cpp
     src/vulkan/model_db.cpp
     src/vulkan/renderer.cpp
+    src/vulkan/app.cpp
 	src/audio.cpp
 	src/speaker.cpp
     src/physics.cpp 

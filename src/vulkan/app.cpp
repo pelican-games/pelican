@@ -107,7 +107,7 @@ void VulkanApp::initVulkan() {
     image = createImage(screenWidth, screenHeight, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled);
 
     // バッファの作成
-    setBuffer(scene);
+    // setBuffer(scene);
 
     // シェーダーモジュールの作成
     vk::UniqueShaderModule vertShaderModule = createShaderModule("../shaders/shader.vert.spv");
@@ -417,7 +417,7 @@ void VulkanApp::setBuffer(std::vector<Object> scene) {
     }
 }
 
-void VulkanApp::drawFrame(uint32_t objectIndex) {
+void VulkanApp::drawFrame() {
     device->resetFences({swapchainImgFence.get()});
     vk::ResultValue acquireResult = device->acquireNextImageKHR(swapchain.get(), UINT64_MAX, {}, swapchainImgFence.get());
 
@@ -458,34 +458,19 @@ void VulkanApp::drawFrame(uint32_t objectIndex) {
     vk::CommandBufferBeginInfo beginInfo;
     graphicCommandBuffers.at(0)->begin(beginInfo);
 
-    // vk::ImageMemoryBarrier firstMemoryBarrier;
-    // firstMemoryBarrier.srcAccessMask = vk::AccessFlagBits::eNone;
-    // firstMemoryBarrier.dstAccessMask = vk::AccessFlagBits::eNone;
-    // firstMemoryBarrier.oldLayout = vk::ImageLayout::eUndefined;
-    // firstMemoryBarrier.newLayout = vk::ImageLayout::eColorAttachmentOptimal;
-    // firstMemoryBarrier.image = swapchainImages[imageIndex];
-    // firstMemoryBarrier.setSubresourceRange({ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
-
-    // graphicCommandBuffers.at(0)->pipelineBarrier(
-    //     vk::PipelineStageFlagBits::eBottomOfPipe,
-    //     vk::PipelineStageFlagBits::eTopOfPipe,
-    //     {},
-    //     {},
-    //     {},
-    //     firstMemoryBarrier
-    // );
-
     graphicCommandBuffers.at(0)->beginRendering(renderingInfo);
 
     vk::ClearValue clearValue(vk::ClearColorValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}));
 
     graphicCommandBuffers.at(0)->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get());
 
-    graphicCommandBuffers.at(0)->bindVertexBuffers(0, {vertexBuffers.at(objectIndex).first.get(), instanceBuffers.at(objectIndex).first.get()}, {0, 0});
-    graphicCommandBuffers.at(0)->bindIndexBuffer(indexBuffers.at(objectIndex).first.get(), 0, vk::IndexType::eUint32);
-
-    graphicCommandBuffers.at(0)->drawIndexed(indexCounts.at(objectIndex).first,
-                                             indexCounts.at(objectIndex).second, 0, 0, 0);
+    for(int i = 0; i < scene.size(); i++) {
+        graphicCommandBuffers.at(0)->bindVertexBuffers(0, {vertexBuffers.at(i).first.get(), instanceBuffers.at(i).first.get()}, {0, 0});
+        graphicCommandBuffers.at(0)->bindIndexBuffer(indexBuffers.at(i).first.get(), 0, vk::IndexType::eUint32);
+    
+        graphicCommandBuffers.at(0)->drawIndexed(indexCounts.at(i).first,
+                                                 indexCounts.at(i).second, 0, 0, 0);
+    }
     graphicCommandBuffers.at(0)->endRendering();
 
     vk::ImageMemoryBarrier imageMemoryBarrier;

@@ -44,6 +44,8 @@ class VulkanApp {
         //イメージ
         vk::UniqueImage image;
 
+        std::vector<pl::Object> scene;
+
         void initVulkan();
         void mainLoop();
         void cleanup();
@@ -72,10 +74,13 @@ class VulkanApp {
         //頂点バッファの作成
         std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory> createBuffer(vk::BufferCreateFlags flags, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
         void setBuffer(std::vector<Object> scene);
+        
+        //レンダリング
+        void drawObject(uint32_t imageIndex);
 
     public:
         //レンダリング
-        void drawFrame(uint32_t imageIndex);
+        void drawFrame();
 };
 
 }

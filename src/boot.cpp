@@ -1,8 +1,12 @@
 #include "pelican/boot.hpp"
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.hpp>
+#include "vulkan/app.hpp"
+#include <optional>
 
 namespace pl {
+    std::optional<VulkanApp> vkApp;
+
     // 1回だけ呼ばれる
     System::System(unsigned int Windowheight, unsigned int Windowwidth) {
         if (!glfwInit()) {
@@ -15,13 +19,17 @@ namespace pl {
             glfwTerminate();
             throw std::runtime_error("Failed to create GLFW window");
         }
+
+        vkApp.emplace(window, Windowwidth, Windowheight);
     }
 
     // 毎フレーム呼ばれる
     bool System::frameUpdate() {
-        if (!window) {
+        if (!window || !vkApp) {
             throw std::runtime_error("Window is not initialized.");
         }
+
+        vkApp->drawFrame();
 
         // イベントポーリング
         glfwPollEvents();

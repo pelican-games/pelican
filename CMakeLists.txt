@@ -14,7 +14,6 @@ add_library(pelican
 	src/speaker.cpp
     src/physics.cpp 
     src/boot.cpp
-    src/renderer.cpp
 )
 target_include_directories(pelican PUBLIC 
     include

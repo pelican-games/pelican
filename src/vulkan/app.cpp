@@ -10,14 +10,6 @@ namespace pl {
 
 VulkanApp::VulkanApp(GLFWwindow *window, unsigned int screenWidth, unsigned int screenHeight)
     : window(window), screenWidth{screenWidth}, screenHeight{screenHeight} {
-    initVulkan();
-}
-
-VulkanApp::~VulkanApp() {
-    cleanup();
-}
-
-void VulkanApp::initVulkan() {
     std::cout << "Vulkan Header Version: " << VK_HEADER_VERSION << std::endl;
 
     // APIバージョンのプリント（ヘッダーで定義された最新のAPIバージョンを表示）
@@ -126,6 +118,9 @@ void VulkanApp::initVulkan() {
     // スワップチェーンイメージ用フェンスの作成
     vk::FenceCreateInfo fenceCreateInfo{};
     swapchainImgFence = device->createFenceUnique(fenceCreateInfo);
+}
+
+VulkanApp::~VulkanApp() {
 }
 
 // 物理デバイスの選択
@@ -464,10 +459,10 @@ void VulkanApp::drawFrame() {
 
     graphicCommandBuffers.at(0)->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get());
 
-    for(int i = 0; i < scene.size(); i++) {
+    for (int i = 0; i < scene.size(); i++) {
         graphicCommandBuffers.at(0)->bindVertexBuffers(0, {vertexBuffers.at(i).first.get(), instanceBuffers.at(i).first.get()}, {0, 0});
         graphicCommandBuffers.at(0)->bindIndexBuffer(indexBuffers.at(i).first.get(), 0, vk::IndexType::eUint32);
-    
+
         graphicCommandBuffers.at(0)->drawIndexed(indexCounts.at(i).first,
                                                  indexCounts.at(i).second, 0, 0, 0);
     }
@@ -516,7 +511,14 @@ void VulkanApp::drawFrame() {
     graphicsQueues.at(0).waitIdle();
 }
 
-void VulkanApp::cleanup() {
+void VulkanApp::drawModel(const Model &model, glm::mat4x4 modelMatrix) {
+}
+void VulkanApp::setCamera(glm::vec3 pos, glm::vec3 dir, glm::vec3 up) {
+}
+void VulkanApp::setProjection(float horizontalAngle) {
+}
+pl::Model VulkanApp::loadModel(std::filesystem::path file_path) {
+    return Model{ modelDb.load_model(file_path) };
 }
 
 } // namespace pl

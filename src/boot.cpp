@@ -5,8 +5,6 @@
 #include <optional>
 
 namespace pl {
-    std::optional<VulkanApp> vkApp;
-
     // 1回だけ呼ばれる
     System::System(unsigned int Windowwidth, unsigned int Windowheight) {
         if (!glfwInit()) {
@@ -20,16 +18,16 @@ namespace pl {
             throw std::runtime_error("Failed to create GLFW window");
         }
 
-        vkApp.emplace(window, Windowwidth, Windowheight);
+        renderer = std::make_unique<VulkanApp>(window, Windowwidth, Windowheight);
     }
 
     // 毎フレーム呼ばれる
     bool System::frameUpdate() {
-        if (!window || !vkApp) {
-            throw std::runtime_error("Window is not initialized.");
-        }
+        // if (!window || !renderer) {
+        //     throw std::runtime_error("Window is not initialized.");
+        // }
 
-        vkApp->drawFrame();
+        renderer->drawFrame();
 
         // イベントポーリング
         glfwPollEvents();
@@ -42,5 +40,9 @@ namespace pl {
             glfwDestroyWindow(window);
             glfwTerminate();
         }
+    }
+    
+	Renderer& System::getDefaultRenderer() {
+        return *renderer.get();
     }
 }

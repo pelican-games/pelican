@@ -2,16 +2,20 @@
 #define PELICAN_BOOT_HPP
 #include<iostream>
 #include<GLFW/glfw3.h>
+#include<pelican/renderer.hpp>
 
 namespace pl {
 
 class System {
 	GLFWwindow* window;
+	std::unique_ptr<Renderer> renderer;
+
 public:
 	System(unsigned int Windowheight,unsigned int Windowwidth);
 	~System();
 
 	bool frameUpdate();
+	Renderer& getDefaultRenderer();
 };
 
 }

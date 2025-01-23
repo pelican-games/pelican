@@ -2,16 +2,20 @@
 #include "geometry.hpp"
 #include "pipelineBuilder.hpp"
 #include <GLFW/glfw3.h>
+#include <pelican/renderer.hpp>
+#include "model_db.hpp"
 
 namespace pl {
 
-class VulkanApp {
+class VulkanApp : public pl::Renderer {
         unsigned int screenWidth, screenHeight;
         GLFWwindow* window;
 
+        pl::ModelDataBase modelDb;
+
     public:
         VulkanApp(GLFWwindow* window, unsigned int screenWidth, unsigned int screenHeight);
-        ~VulkanApp();
+        ~VulkanApp() override;
 
     private:
         vk::UniqueInstance instance;
@@ -46,10 +50,6 @@ class VulkanApp {
 
         std::vector<pl::Object> scene;
 
-        void initVulkan();
-        void mainLoop();
-        void cleanup();
-
         //vulkan初期化用関数
         vk::PhysicalDevice pickPhysicalDevice(const std::vector<const char*>& deviceExtensions, vk::PhysicalDeviceFeatures deviceFeatures);
         bool checkDeviceExtensionSupport(vk::PhysicalDevice device, const std::vector<const char*>& deviceExtensions);
@@ -75,12 +75,14 @@ class VulkanApp {
         std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory> createBuffer(vk::BufferCreateFlags flags, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
         void setBuffer(std::vector<Object> scene);
         
-        //レンダリング
-        void drawObject(uint32_t imageIndex);
-
     public:
         //レンダリング
-        void drawFrame();
+        void drawFrame() override;
+
+        void drawModel(const Model &model, glm::mat4x4 modelMatrix) override;
+        void setCamera(glm::vec3 pos, glm::vec3 dir, glm::vec3 up) override;
+        void setProjection(float horizontalAngle) override;
+        pl::Model loadModel(std::filesystem::path file_path) override;
 };
 
 }

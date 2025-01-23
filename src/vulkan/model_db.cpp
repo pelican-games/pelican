@@ -16,7 +16,7 @@ class ModelLoader {
 
     ModelDataBase &db;
     std::vector<pl::Material *> p_materials;
-    pl::ModelData* p_model;
+    pl::ModelData *p_model;
     tinygltf::Model model;
 
     template <uint32_t expectType, uint32_t expectComponentType, class F>
@@ -140,6 +140,23 @@ class ModelLoader {
     }
 
     void load_node(pl::Mesh &meshData, const tinygltf::Node &node) {
+        // transform
+        pl::Transform transform;
+        if (node.translation.size() == 3)
+            transform.translation = glm::vec3{node.translation[0], node.translation[1], node.translation[2]};
+        else
+            transform.translation = glm::vec3(0, 0, 0);
+
+        if (node.rotation.size() == 4)
+            transform.rotation = glm::quat{node.rotation[0], node.rotation[1], node.rotation[2], node.rotation[3]};
+        else
+            transform.rotation = glm::quat(0, 0, 0, 1);
+
+        if (node.scale.size() == 3)
+            transform.scale = glm::vec3{node.scale[0], node.scale[1], node.scale[2]};
+        else
+            transform.translation = glm::vec3(1, 1, 1);
+
         for (const auto childNodeIndex : node.children) {
             load_node(meshData, model.nodes[childNodeIndex]);
         }
@@ -194,7 +211,7 @@ class ModelLoader {
         p_model = &db.models.front();
     }
 
-    pl::ModelData* getModel() const { return p_model; }
+    pl::ModelData *getModel() const { return p_model; }
 };
 
 const pl::ModelData *ModelDataBase::load_model(std::filesystem::path file_path) {

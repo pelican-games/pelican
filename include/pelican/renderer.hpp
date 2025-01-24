@@ -10,13 +10,13 @@ namespace pl {
 
 struct ModelData;
 struct Model {
-    const pl::ModelData *pDat;
+    pl::ModelData *pDat;
 };
 
 class Renderer {
   public:
     virtual void drawModel(const Model &model, glm::mat4x4 modelMatrix) = 0;
-    virtual void setObjectData() = 0;
+    //virtual void setObjectData() = 0;
     virtual void setCamera(glm::vec3 pos, glm::vec3 dir, glm::vec3 up) = 0;
     virtual void setProjection(float horizontalAngle) = 0;
     virtual pl::Model loadModel(std::filesystem::path file_path) = 0;

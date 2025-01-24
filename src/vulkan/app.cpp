@@ -444,6 +444,8 @@ void VulkanApp::setBuffer() {
                 meshVertices.insert(meshVertices.end(), primitive.vertices.begin(), primitive.vertices.end());
                 meshIndices.insert(meshIndices.end(), primitive.indices.begin(), primitive.indices.end());
             }
+            std::cout << "Mesh Vertices: " << meshVertices.size() << std::endl;
+            std::cout << "Mesh Indices: " << meshIndices.size() << std::endl;
             // インスタンスのあるオブジェクトの頂点バッファを作成
             modelDb.vertexBuffers.push_back(createBuffer({}, meshVertices.size() * sizeof(Vertex), vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eHostVisible));
             void *meshVertexBufMem = device->mapMemory(modelDb.vertexBuffers.back().second.get(), 0, meshVertices.size() * sizeof(Vertex));
@@ -593,11 +595,9 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex){
 void VulkanApp::drawFrame() {
     drawGBuffer(0);
     drawGeometry.clear();
-}
-
-
-void VulkanApp::setObjectData() {
-
+    for(auto &model : modelDb.models){
+        model.instanceAttributes.clear();
+    }
 }
 
 void VulkanApp::setCamera(glm::vec3 pos, glm::vec3 dir, glm::vec3 up) {
@@ -609,10 +609,9 @@ void VulkanApp::setProjection(float horizontalAngle) {
 }
 
 
-void VulkanApp::drawModel(const Model &model, glm::mat4x4 modelMatrix) {
-    
-
-
+void VulkanApp::drawModel(const Model &model, glm::mat4 modelMatrix) {
+    drawGeometry.push_back(model);
+    model.pDat->instanceAttributes.push_back(InstanceAttribute{modelMatrix});
 }
 
 

@@ -249,9 +249,9 @@ class ModelLoader {
         p_model = &db.models.front();
     }
 
-    pl::ModelData *getModel() const { return p_model; }
+    pl::ModelData *getModel() { return p_model; }
 };
-const pl::ModelData *ModelDataBase::load_model(std::filesystem::path file_path) {
+pl::ModelData *ModelDataBase::load_model(std::filesystem::path file_path) {
     ModelLoader loader{*this, file_path};
     return loader.getModel();
 }

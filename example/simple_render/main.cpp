@@ -15,7 +15,7 @@ int main() {
         while(sys.frameUpdate()) {
             renderer.setCamera(glm::vec3(2.0, 0.0, 0.0), glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
             renderer.setProjection(45.0);
-            renderer.setObjectData();
+            renderer.drawModel(test_model, glm::mat4(1.0));
         }
     } catch(std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;

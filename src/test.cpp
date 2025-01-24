@@ -374,7 +374,7 @@ int main() {
         dynamicsWorld->stepSimulation(1 / 60.f, 10);
         renderer.setCamera(glm::vec3(2.0, 0.0, 0.0), glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
         renderer.setProjection(45.0);   
-        renderer.setObjectData();
+        renderer.drawModel(test_model, glm::mat4x4(1.0f));
     }
     std::cout << "Game is correctly End." << std::endl;
 }

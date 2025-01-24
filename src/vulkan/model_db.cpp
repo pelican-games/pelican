@@ -3,8 +3,8 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "model_db.hpp"
 #include <filesystem>
-#include <tiny_gltf.h>
 #include <iostream>
+#include <tiny_gltf.h>
 
 namespace pl {
 
@@ -14,11 +14,9 @@ glm::vec4 to_vec4(std::vector<T> v) {
 }
 
 class ModelLoader {
-    ObjectDataBase objDb;
     ModelDataBase &db;
     std::vector<pl::Material *> p_materials;
     pl::ModelData *p_model;
-    pl::ObjectDataBase *p_object;
     tinygltf::Model model;
 
     template <uint32_t expectType, uint32_t expectComponentType, class F>
@@ -171,10 +169,39 @@ class ModelLoader {
                 meshData.primitives.push_back(primitiveData);
             }
         }
-        Object object;
-        object.mesh = &meshData;
-        object.transform = transform;
-        objDb.objects.push_back(std::move(object)); 
+    }
+
+    pl::TextureRaw load_texture(const int index) {
+        const auto &tex = model.textures[index];
+
+        TextureRaw rawData;
+        switch (model.samplers[tex.sampler].magFilter) {
+        case TINYGLTF_TEXTURE_FILTER_NEAREST:
+            rawData.magFilter = pl::FilterType::Nearest;
+            break;
+        case TINYGLTF_TEXTURE_FILTER_LINEAR:
+            rawData.magFilter = pl::FilterType::Linear;
+            break;
+        default:
+            rawData.magFilter = pl::FilterType::Linear;
+            break;
+        }
+        switch (model.samplers[tex.sampler].minFilter) {
+        case TINYGLTF_TEXTURE_FILTER_NEAREST:
+            rawData.minFilter = pl::FilterType::Nearest;
+            break;
+        case TINYGLTF_TEXTURE_FILTER_LINEAR:
+            rawData.minFilter = pl::FilterType::Linear;
+            break;
+        default:
+            rawData.minFilter = pl::FilterType::Linear;
+            break;
+        }
+        const auto& image = model.images[tex.source];
+        rawData.width = image.width;
+        rawData.height = image.height;
+        rawData.data = image.image;
+        return rawData;
     }
 
     pl::Material *load_material(const tinygltf::Material &material) {
@@ -185,12 +212,17 @@ class ModelLoader {
         materialData.metallicFactor = material.pbrMetallicRoughness.metallicFactor;
         materialData.roughnessFactor = material.pbrMetallicRoughness.roughnessFactor;
 
+        materialData.baseColorTextureRaw = load_texture(material.pbrMetallicRoughness.baseColorTexture.index);
+        materialData.normalTextureRaw = load_texture(material.normalTexture.index);
+        materialData.emissiveTextureRaw = load_texture(material.emissiveTexture.index);
+        materialData.occlusionTextureRaw = load_texture(material.occlusionTexture.index);
+
         db.materials.emplace_back(std::move(materialData));
         return &db.materials.back();
     }
 
   public:
-    ModelLoader( ModelDataBase &db, std::filesystem::path file_path) : db{db} {
+    ModelLoader(ModelDataBase &db, std::filesystem::path file_path) : db{db} {
         pl::Mesh mesh;
 
         tinygltf::TinyGLTF loader;
@@ -217,31 +249,11 @@ class ModelLoader {
         p_model = &db.models.front();
     }
 
-    void dump() const {
-        for (const auto &object : objDb.objects) {
-            std::cout << "Object:" << std::endl;
-            std::cout << "  Mesh: " << object.mesh << std::endl;
-            std::cout << "  Transform:" << std::endl;
-            std::cout << "    Translation: (" << object.transform.translation.x << ", " << object.transform.translation.y << ", " << object.transform.translation.z << ")" << std::endl;
-            std::cout << "    Rotation: (" << object.transform.rotation.x << ", " << object.transform.rotation.y << ", " << object.transform.rotation.z << ", " << object.transform.rotation.w << ")" << std::endl;
-            std::cout << "    Scale: (" << object.transform.scale.x << ", " << object.transform.scale.y << ", " << object.transform.scale.z << ")" << std::endl;
-        }
-    }
-
     pl::ModelData *getModel() const { return p_model; }
-    const pl::ObjectDataBase *getObject() const { return &objDb; }
 };
 const pl::ModelData *ModelDataBase::load_model(std::filesystem::path file_path) {
     ModelLoader loader{*this, file_path};
     return loader.getModel();
 }
-
-/*
-const pl::ObjectDataBase *ObjectDataBase::load_object(std::filesystem::path file_path) {
-    ObjectLoader loader{*this, file_path};
-    loader.dump();
-    return loader.getObject();
-}
-*/
 
 } // namespace pl

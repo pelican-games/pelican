@@ -32,27 +32,41 @@ struct Vertex {
     }
 };
 
+enum class FilterType {
+    Nearest, Linear, Cubic,
+};
+struct TextureRaw {
+    FilterType magFilter, minFilter;
+    int width, height;
+    std::vector<uint8_t> data;
+};
+
 struct Material {
     glm::vec4 baseColorFactor;
     float metallicFactor;
     float roughnessFactor;
 
+    TextureRaw baseColorTextureRaw;
     vk::UniqueImage baseColorTexture;
     vk::UniqueImageView baseColorTextureView;
     vk::UniqueSampler baseColorTextureSampler;
 
+    TextureRaw metallicRoughnessTextureRaw;
     vk::UniqueImage metallicRoughnessTexture;
     vk::UniqueImageView metallicRoughnessTextureView;
     vk::UniqueSampler metallicRoughnessTextureSampler;
 
+    TextureRaw normalTextureRaw;
     vk::UniqueImage normalTexture;
     vk::UniqueImageView normalTextureView;
     vk::UniqueSampler normalTextureSampler;
 
+    TextureRaw occlusionTextureRaw;
     vk::UniqueImage occlusionTexture;
     vk::UniqueImageView occlusionTextureView;
     vk::UniqueSampler occlusionTextureSampler;
 
+    TextureRaw emissiveTextureRaw;
     vk::UniqueImage emissiveTexture;
     vk::UniqueImageView emissiveTextureView;
     vk::UniqueSampler emissiveTextureSampler;

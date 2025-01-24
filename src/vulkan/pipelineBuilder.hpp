@@ -10,6 +10,9 @@ class PipelineBuilder {
     PipelineBuilder() { clear(); };
     vk::UniquePipeline buildPipeline(vk::Device, vk::UniquePipelineLayout& pipelinelayout, std::vector<vk::PipelineShaderStageCreateInfo> shaderStages, uint32_t WIDTH, uint32_t HEIGHT);
 
+    vk::UniquePipeline gBufPipelinr(vk::Device, vk::UniquePipelineLayout& pipelinelayout, std::vector<vk::PipelineShaderStageCreateInfo> shaderStages, uint32_t WIDTH, uint32_t HEIGHT);
+    vk::UniquePipeline shadingPipeline(vk::Device, vk::UniquePipelineLayout& pipelinelayout, std::vector<vk::PipelineShaderStageCreateInfo> shaderStages, uint32_t WIDTH, uint32_t HEIGHT);
+
   private:
     std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo;

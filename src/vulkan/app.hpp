@@ -73,7 +73,6 @@ class VulkanApp : public pl::Renderer {
         //スワップチェーンの作成
         void createSwapchain();
 
-        //頂点バッファの作成
         std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory> createBuffer(vk::BufferCreateFlags flags, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
         void setBuffer();
 

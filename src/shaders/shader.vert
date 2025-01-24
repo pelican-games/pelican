@@ -16,5 +16,5 @@ layout(location = 10) in vec4 inInstanceMatrix3;
 
 void main() {
     mat4 instanceMatrix = mat4(inInstanceMatrix0, inInstanceMatrix1, inInstanceMatrix2, inInstanceMatrix3);
-    gl_Position = instanceMatrix * vec4(inPos, 1.0);
+    gl_Position = vec4(inPos, 1.0) ;
 }

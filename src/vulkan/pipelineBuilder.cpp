@@ -77,7 +77,7 @@ vk::UniquePipeline PipelineBuilder::buildPipeline(vk::Device device, std::vector
         VK_FALSE,                         // rasterizerDiscardEnable
         vk::PolygonMode::eFill,           // polygonMode
         vk::CullModeFlagBits::eBack,      // cullMode
-        vk::FrontFace::eCounterClockwise, // frontFace
+        vk::FrontFace::eClockwise, // frontFace
         VK_FALSE,                         // depthBiasEnable
         0.0f,                             // depthBiasConstantFactor
         0.0f,                             // depthBiasClamp

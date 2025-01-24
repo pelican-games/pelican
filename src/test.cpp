@@ -349,7 +349,7 @@ int main() {
     pl::System sys(HEIGHT,WIDTH);
     pl::Renderer& renderer = sys.getDefaultRenderer();
     std::cout << "Renderer loaded" << std::endl;
-    pl::Model test_model = renderer.loadModel("example/assets/test.glb");
+    pl::Model test_model = renderer.loadModel("example/assets/monkey.glb");
     std::cout << "Model loaded" << std::endl;
     //renderer.loadObject("example/assets/test.glb");
     std::cout << "Model loaded" << std::endl;

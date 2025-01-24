@@ -5,8 +5,11 @@ int main() {
         pl::System sys(800, 600);
 
         pl::Renderer& renderer = sys.getDefaultRenderer();
-        pl::Model test_model = renderer.loadModel("example/assets/test.glb");
+        std::cout << "Renderer loaded" << std::endl;
+        //pl::Model test_model = renderer.loadModel("example/assets/test.glb");
+        std::cout << "Model loaded" << std::endl;
         renderer.loadObject("example/assets/test.glb");
+        std::cout << "Model loaded" << std::endl;
         renderer.setup();
 
         while(sys.frameUpdate()) {

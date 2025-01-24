@@ -97,7 +97,6 @@ VulkanApp::VulkanApp(GLFWwindow *window, unsigned int screenWidth, unsigned int 
 
     // イメージの作成
     image = createImage(screenWidth, screenHeight, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled);
-
 }
 
 VulkanApp::~VulkanApp() {
@@ -105,8 +104,18 @@ VulkanApp::~VulkanApp() {
 
 
 void VulkanApp::loadObject(std::filesystem::path file_path) {
-    const pl::ObjectDataBase *objDbPtr = modelDb.load_object(file_path);
+    std::cout << "Loading Object: " << file_path << std::endl;
+    auto objDbPtr = modelDb.load_object(file_path);
     objDb = *objDbPtr;
+    for (const auto &object : objDbPtr->objects) {
+            std::cout << "Object:" << std::endl;
+            std::cout << "  Mesh: " << object.mesh << std::endl;
+            std::cout << "  Transform:" << std::endl;
+            std::cout << "    Translation: (" << object.transform.translation.x << ", " << object.transform.translation.y << ", " << object.transform.translation.z << ")" << std::endl;
+            std::cout << "    Rotation: (" << object.transform.rotation.x << ", " << object.transform.rotation.y << ", " << object.transform.rotation.z << ", " << object.transform.rotation.w << ")" << std::endl;
+            std::cout << "    Scale: (" << object.transform.scale.x << ", " << object.transform.scale.y << ", " << object.transform.scale.z << ")" << std::endl;
+        }
+    std::cout << "Object Loaded" << std::endl;
 }
 
 void VulkanApp::setup(){
@@ -555,9 +564,11 @@ void VulkanApp::setCamera(glm::vec3 pos, glm::vec3 dir, glm::vec3 up) {
 }
 void VulkanApp::setProjection(float horizontalAngle) {
 }
+/*
 pl::Model VulkanApp::loadModel(std::filesystem::path file_path) {
     return Model{ modelDb.load_model(file_path) };
 }
+*/
 
 
 } // namespace pl

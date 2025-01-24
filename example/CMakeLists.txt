@@ -10,3 +10,8 @@ add_executable(example_simple_render
 target_link_libraries(example_simple_render PRIVATE pelican)
 set_target_properties(example_simple_render PROPERTIES CXX_STANDARD 20)
 
+add_executable(example_instancing
+    instancing/main.cpp
+)
+target_link_libraries(example_instancing PRIVATE pelican)
+set_target_properties(example_instancing PROPERTIES CXX_STANDARD 20)

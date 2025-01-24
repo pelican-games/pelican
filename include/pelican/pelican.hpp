@@ -11,6 +11,7 @@
 #include "pelican/boot.hpp"
 #include "pelican/physics.hpp"
 #include "pelican/system.hpp"
+#include "pelican/sceneLoader.hpp"
 #include <GLFW/glfw3.h>
 namespace pl {
 

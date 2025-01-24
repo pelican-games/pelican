@@ -11,13 +11,17 @@ class VulkanApp : public pl::Renderer {
         unsigned int screenWidth, screenHeight;
         GLFWwindow* window;
 
+        pl::ObjectDataBase objDb;
         pl::ModelDataBase modelDb;
+
+        pl::VPMatrix vpMatrix;
 
     public:
         VulkanApp(GLFWwindow* window, unsigned int screenWidth, unsigned int screenHeight);
         ~VulkanApp() override;
 
     private:
+    
         vk::UniqueInstance instance;
         vk::PhysicalDevice physicalDevice;
         vk::UniqueDevice device;
@@ -29,12 +33,13 @@ class VulkanApp : public pl::Renderer {
         // vk::UniqueCommandPool computeCommandPool;
         // std::vector<vk::UniqueCommandBuffer> computeCommandBuffers;
         
-        std::vector<std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory>> vertexBuffers;
-        std::vector<std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory>> indexBuffers;
-        std::vector<std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory>> instanceBuffers;
+        //std::vector<std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory>> vertexBuffers;
+        //std::vector<std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory>> indexBuffers;
+        //std::vector<std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory>> instanceBuffers;
         std::vector<std::pair<uint32_t, uint32_t>> indexCounts; //頂点数(のべ)とインスタンス数
 
         vk::UniquePipeline pipeline;
+        vk::UniquePipelineLayout pipelineLayout;
         std::unique_ptr<PipelineBuilder> pipelineBuilder;
 
         VkSurfaceKHR c_surface;
@@ -48,7 +53,7 @@ class VulkanApp : public pl::Renderer {
         //イメージ
         vk::UniqueImage image;
 
-        std::vector<pl::Object> scene;
+        //std::vector<pl::Object> scene;
 
         //vulkan初期化用関数
         vk::PhysicalDevice pickPhysicalDevice(const std::vector<const char*>& deviceExtensions, vk::PhysicalDeviceFeatures deviceFeatures);
@@ -71,18 +76,24 @@ class VulkanApp : public pl::Renderer {
         //スワップチェーンの作成
         void createSwapchain();
 
-        //頂点バッファの作成
         std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory> createBuffer(vk::BufferCreateFlags flags, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
-        void setBuffer(std::vector<Object> scene);
+        void setBuffer();
+
         
+
+        //レンダリング
+        void drawGBuffer(uint32_t objectIndex);  
+
     public:
         //レンダリング
         void drawFrame() override;
 
-        void drawModel(const Model &model, glm::mat4x4 modelMatrix) override;
+        void drawModel(const Model &model, glm::mat4x4 modelMatrix) override;//インスタンスバッファのためにインスタンス毎のモデル行列を受け取る
+
         void setCamera(glm::vec3 pos, glm::vec3 dir, glm::vec3 up) override;
         void setProjection(float horizontalAngle) override;
-        pl::Model loadModel(std::filesystem::path file_path) override;
+        pl::Model loadModel(std::filesystem::path file_path, uint32_t max_object_num) override;
+        //void loadObject(std::filesystem::path file_path) override;
 };
 
 }

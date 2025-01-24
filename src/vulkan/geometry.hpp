@@ -32,27 +32,41 @@ struct Vertex {
     }
 };
 
+enum class FilterType {
+    Nearest, Linear, Cubic,
+};
+struct TextureRaw {
+    FilterType magFilter, minFilter;
+    int width, height;
+    std::vector<uint8_t> data;
+};
+
 struct Material {
     glm::vec4 baseColorFactor;
     float metallicFactor;
     float roughnessFactor;
 
+    TextureRaw baseColorTextureRaw;
     vk::UniqueImage baseColorTexture;
     vk::UniqueImageView baseColorTextureView;
     vk::UniqueSampler baseColorTextureSampler;
 
+    TextureRaw metallicRoughnessTextureRaw;
     vk::UniqueImage metallicRoughnessTexture;
     vk::UniqueImageView metallicRoughnessTextureView;
     vk::UniqueSampler metallicRoughnessTextureSampler;
 
+    TextureRaw normalTextureRaw;
     vk::UniqueImage normalTexture;
     vk::UniqueImageView normalTextureView;
     vk::UniqueSampler normalTextureSampler;
 
+    TextureRaw occlusionTextureRaw;
     vk::UniqueImage occlusionTexture;
     vk::UniqueImageView occlusionTextureView;
     vk::UniqueSampler occlusionTextureSampler;
 
+    TextureRaw emissiveTextureRaw;
     vk::UniqueImage emissiveTexture;
     vk::UniqueImageView emissiveTextureView;
     vk::UniqueSampler emissiveTextureSampler;
@@ -78,10 +92,16 @@ struct InstanceAttribute {
     glm::mat4 model;
 };
 
+struct InstanceUpdate {
+    std::vector<InstanceAttribute> sphere;
+    std::vector<InstanceAttribute> module;
+};
+
 struct Object {
     bool Instance;
     Mesh* mesh;
     std::vector<InstanceAttribute> instanceAttributes;
+    Transform transform;
 
     static vk::VertexInputBindingDescription getBindingDescription() {
         return vk::VertexInputBindingDescription(1, sizeof(glm::vec4) * 4, vk::VertexInputRate::eInstance);
@@ -97,4 +117,10 @@ struct Object {
     }
 };
 
+struct VPMatrix {
+    glm::mat4 view;
+    glm::mat4 projection;
+};
+
 }
+

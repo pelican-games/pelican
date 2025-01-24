@@ -347,6 +347,12 @@ int main() {
 
 int main() {
     pl::System sys(HEIGHT,WIDTH);
+    pl::Renderer& renderer = sys.getDefaultRenderer();
+    std::cout << "Renderer loaded" << std::endl;
+    pl::Model test_model = renderer.loadModel("example/assets/monkey.glb");
+    std::cout << "Model loaded" << std::endl;
+    //renderer.loadObject("example/assets/test.glb");
+    std::cout << "Model loaded" << std::endl;
 
     std::cout << "Game is Start now!" << std::endl;
     btDiscreteDynamicsWorld* dynamicsWorld;
@@ -365,6 +371,8 @@ int main() {
         ball.rigidbody->getMotionState()->getWorldTransform(transform);
         std::cout << transform.getOrigin().getX() << " " << transform.getOrigin().getY() << " " << transform.getOrigin().getZ() << std::endl;
         dynamicsWorld->stepSimulation(1 / 60.f, 10);
+        renderer.setCamera(glm::vec3(2.0, 0.0, 0.0), glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+        renderer.setProjection(45.0);   
     }
     std::cout << "Game is correctly End." << std::endl;
 }

@@ -14,7 +14,12 @@ layout(location = 8) in vec4 inInstanceMatrix1;
 layout(location = 9) in vec4 inInstanceMatrix2;
 layout(location = 10) in vec4 inInstanceMatrix3;
 
+layout(push_constant) uniform PushConstant {
+    mat4 view;
+    mat4 proj;
+} push;
+
 void main() {
     mat4 instanceMatrix = mat4(inInstanceMatrix0, inInstanceMatrix1, inInstanceMatrix2, inInstanceMatrix3);
-    gl_Position = instanceMatrix * vec4(inPos, 1.0);
+    gl_Position = push.proj * push.view * instanceMatrix * vec4(inPos, 1.0);
 }

@@ -3,6 +3,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "model_db.hpp"
 #include <filesystem>
+#include <iostream>
 #include <tiny_gltf.h>
 
 namespace pl {
@@ -13,7 +14,6 @@ glm::vec4 to_vec4(std::vector<T> v) {
 }
 
 class ModelLoader {
-
     ModelDataBase &db;
     std::vector<pl::Material *> p_materials;
     pl::ModelData *p_model;
@@ -148,7 +148,7 @@ class ModelLoader {
             transform.translation = glm::vec3(0, 0, 0);
 
         if (node.rotation.size() == 4)
-            transform.rotation = glm::quat{node.rotation[0], node.rotation[1], node.rotation[2], node.rotation[3]};
+            transform.rotation = glm::quat{static_cast<float>(node.rotation[0]), static_cast<float>(node.rotation[1]), static_cast<float>(node.rotation[2]), static_cast<float>(node.rotation[3])};
         else
             transform.rotation = glm::quat(0, 0, 0, 1);
 
@@ -171,6 +171,39 @@ class ModelLoader {
         }
     }
 
+    pl::TextureRaw load_texture(const int index) {
+        const auto &tex = model.textures[index];
+
+        TextureRaw rawData;
+        switch (model.samplers[tex.sampler].magFilter) {
+        case TINYGLTF_TEXTURE_FILTER_NEAREST:
+            rawData.magFilter = pl::FilterType::Nearest;
+            break;
+        case TINYGLTF_TEXTURE_FILTER_LINEAR:
+            rawData.magFilter = pl::FilterType::Linear;
+            break;
+        default:
+            rawData.magFilter = pl::FilterType::Linear;
+            break;
+        }
+        switch (model.samplers[tex.sampler].minFilter) {
+        case TINYGLTF_TEXTURE_FILTER_NEAREST:
+            rawData.minFilter = pl::FilterType::Nearest;
+            break;
+        case TINYGLTF_TEXTURE_FILTER_LINEAR:
+            rawData.minFilter = pl::FilterType::Linear;
+            break;
+        default:
+            rawData.minFilter = pl::FilterType::Linear;
+            break;
+        }
+        const auto& image = model.images[tex.source];
+        rawData.width = image.width;
+        rawData.height = image.height;
+        rawData.data = image.image;
+        return rawData;
+    }
+
     pl::Material *load_material(const tinygltf::Material &material) {
         pl::Material materialData;
 
@@ -178,6 +211,11 @@ class ModelLoader {
             materialData.baseColorFactor = to_vec4(material.pbrMetallicRoughness.baseColorFactor);
         materialData.metallicFactor = material.pbrMetallicRoughness.metallicFactor;
         materialData.roughnessFactor = material.pbrMetallicRoughness.roughnessFactor;
+
+        materialData.baseColorTextureRaw = load_texture(material.pbrMetallicRoughness.baseColorTexture.index);
+        materialData.normalTextureRaw = load_texture(material.normalTexture.index);
+        materialData.emissiveTextureRaw = load_texture(material.emissiveTexture.index);
+        materialData.occlusionTextureRaw = load_texture(material.occlusionTexture.index);
 
         db.materials.emplace_back(std::move(materialData));
         return &db.materials.back();
@@ -213,8 +251,7 @@ class ModelLoader {
 
     pl::ModelData *getModel() const { return p_model; }
 };
-
-const pl::ModelData *ModelDataBase::load_model(std::filesystem::path file_path) {
+pl::ModelData *ModelDataBase::load_model(std::filesystem::path file_path) {
     ModelLoader loader{*this, file_path};
     return loader.getModel();
 }

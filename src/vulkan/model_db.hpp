@@ -7,6 +7,8 @@ namespace pl {
 
 struct ObjectDataBase {
     std::vector<pl::Object> objects;
+
+    const pl::ObjectDataBase* load_object(std::filesystem::path file_path);
 };
 
 struct ModelData {
@@ -17,12 +19,10 @@ struct ModelData {
 
 struct ModelDataBase {
 
-std::list<pl::Material> materials;
-std::list<pl::ModelData> models;
+    std::list<pl::Material> materials;
+    std::list<pl::ModelData> models;
 
-const pl::ModelData* load_model(std::filesystem::path file_path);
-const pl::ObjectDataBase* load_object(std::filesystem::path file_path);
-
+    const pl::ModelData* load_model(std::filesystem::path file_path);
 };
     
 }

@@ -102,10 +102,10 @@ VulkanApp::VulkanApp(GLFWwindow *window, unsigned int screenWidth, unsigned int 
 VulkanApp::~VulkanApp() {
 }
 
-
+/*
 void VulkanApp::loadObject(std::filesystem::path file_path) {
     std::cout << "Loading Object: " << file_path << std::endl;
-    auto objDbPtr = modelDb.load_object(file_path);
+    auto objDbPtr = objDB.load_object(file_path);
     objDb = *objDbPtr;
     for (const auto &object : objDbPtr->objects) {
             std::cout << "Object:" << std::endl;
@@ -117,6 +117,7 @@ void VulkanApp::loadObject(std::filesystem::path file_path) {
         }
     std::cout << "Object Loaded" << std::endl;
 }
+*/
 
 void VulkanApp::setup(){
     // バッファの作成
@@ -564,11 +565,11 @@ void VulkanApp::setCamera(glm::vec3 pos, glm::vec3 dir, glm::vec3 up) {
 }
 void VulkanApp::setProjection(float horizontalAngle) {
 }
-/*
+
 pl::Model VulkanApp::loadModel(std::filesystem::path file_path) {
     return Model{ modelDb.load_model(file_path) };
 }
-*/
+
 
 
 } // namespace pl

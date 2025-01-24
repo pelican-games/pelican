@@ -231,17 +231,17 @@ class ModelLoader {
     pl::ModelData *getModel() const { return p_model; }
     const pl::ObjectDataBase *getObject() const { return &objDb; }
 };
-    
-
 const pl::ModelData *ModelDataBase::load_model(std::filesystem::path file_path) {
     ModelLoader loader{*this, file_path};
     return loader.getModel();
 }
 
-const pl::ObjectDataBase *ModelDataBase::load_object(std::filesystem::path file_path) {
-    ModelLoader loader{*this, file_path};
+/*
+const pl::ObjectDataBase *ObjectDataBase::load_object(std::filesystem::path file_path) {
+    ObjectLoader loader{*this, file_path};
     loader.dump();
     return loader.getObject();
 }
+*/
 
 } // namespace pl

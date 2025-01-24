@@ -92,7 +92,7 @@ class VulkanApp : public pl::Renderer {
         void setCamera(glm::vec3 pos, glm::vec3 dir, glm::vec3 up) override;
         void setProjection(float horizontalAngle) override;
         pl::Model loadModel(std::filesystem::path file_path) override;
-        void loadObject(std::filesystem::path file_path) override;
+        //void loadObject(std::filesystem::path file_path) override;
         //セットアップ2
         void setup();
 };

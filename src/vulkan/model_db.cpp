@@ -251,7 +251,7 @@ class ModelLoader {
 
     pl::ModelData *getModel() const { return p_model; }
 };
-const pl::ModelData *ModelDataBase::load_model(std::filesystem::path file_path) {
+pl::ModelData *ModelDataBase::load_model(std::filesystem::path file_path) {
     ModelLoader loader{*this, file_path};
     return loader.getModel();
 }

@@ -76,7 +76,7 @@ vk::UniquePipeline PipelineBuilder::buildPipeline(vk::Device device, vk::UniqueP
         VK_FALSE,                         // depthClampEnable
         VK_FALSE,                         // rasterizerDiscardEnable
         vk::PolygonMode::eFill,           // polygonMode
-        vk::CullModeFlagBits::eBack,      // cullMode
+        vk::CullModeFlagBits::eNone,      // cullMode
         vk::FrontFace::eClockwise, // frontFace
         VK_FALSE,                         // depthBiasEnable
         0.0f,                             // depthBiasConstantFactor
@@ -244,7 +244,7 @@ vk::UniquePipeline PipelineBuilder::gBufPipelinr(vk::Device device, vk::UniquePi
         VK_FALSE,                         // depthClampEnable
         VK_FALSE,                         // rasterizerDiscardEnable
         vk::PolygonMode::eFill,           // polygonMode
-        vk::CullModeFlagBits::eBack,      // cullMode
+        vk::CullModeFlagBits::eNone,      // cullMode
         vk::FrontFace::eClockwise, // frontFace
         VK_FALSE,                         // depthBiasEnable
         0.0f,                             // depthBiasConstantFactor
@@ -412,7 +412,7 @@ vk::UniquePipeline PipelineBuilder::shadingPipeline(vk::Device device, vk::Uniqu
         VK_FALSE,                         // depthClampEnable
         VK_FALSE,                         // rasterizerDiscardEnable
         vk::PolygonMode::eFill,           // polygonMode
-        vk::CullModeFlagBits::eBack,      // cullMode
+        vk::CullModeFlagBits::eNone,      // cullMode
         vk::FrontFace::eClockwise, // frontFace
         VK_FALSE,                         // depthBiasEnable
         0.0f,                             // depthBiasConstantFactor

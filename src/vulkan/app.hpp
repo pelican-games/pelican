@@ -16,8 +16,6 @@ class VulkanApp : public pl::Renderer {
 
         pl::VPMatrix vpMatrix;
 
-        std::vector<Model> drawGeometry;
-
     public:
         VulkanApp(GLFWwindow* window, unsigned int screenWidth, unsigned int screenHeight);
         ~VulkanApp() override;
@@ -92,13 +90,10 @@ class VulkanApp : public pl::Renderer {
 
         void drawModel(const Model &model, glm::mat4x4 modelMatrix) override;//インスタンスバッファのためにインスタンス毎のモデル行列を受け取る
 
-        void setObjectData();
         void setCamera(glm::vec3 pos, glm::vec3 dir, glm::vec3 up) override;
         void setProjection(float horizontalAngle) override;
-        pl::Model loadModel(std::filesystem::path file_path) override;
+        pl::Model loadModel(std::filesystem::path file_path, uint32_t max_object_num) override;
         //void loadObject(std::filesystem::path file_path) override;
-        //セットアップ2
-        void setup();
 };
 
 }

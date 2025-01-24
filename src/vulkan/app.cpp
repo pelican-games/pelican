@@ -97,36 +97,6 @@ VulkanApp::VulkanApp(GLFWwindow *window, unsigned int screenWidth, unsigned int 
 
     // イメージの作成
     image = createImage(screenWidth, screenHeight, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled);
-}
-
-VulkanApp::~VulkanApp() {
-}
-
-/*
-void VulkanApp::loadObject(std::filesystem::path file_path) {
-    std::cout << "Loading Object: " << file_path << std::endl;
-    auto objDbPtr = objDB.load_object(file_path);
-    objDb = *objDbPtr;
-    for (const auto &object : objDbPtr->objects) {
-            std::cout << "Object:" << std::endl;
-            std::cout << "  Mesh: " << object.mesh << std::endl;
-            std::cout << "  Transform:" << std::endl;
-            std::cout << "    Translation: (" << object.transform.translation.x << ", " << object.transform.translation.y << ", " << object.transform.translation.z << ")" << std::endl;
-            std::cout << "    Rotation: (" << object.transform.rotation.x << ", " << object.transform.rotation.y << ", " << object.transform.rotation.z << ", " << object.transform.rotation.w << ")" << std::endl;
-            std::cout << "    Scale: (" << object.transform.scale.x << ", " << object.transform.scale.y << ", " << object.transform.scale.z << ")" << std::endl;
-        }
-    std::cout << "Object Loaded" << std::endl;
-}
-*/
-
-
-pl::Model VulkanApp::loadModel(std::filesystem::path file_path) {
-    return Model{ modelDb.load_model(file_path) };
-}
-
-void VulkanApp::setup(){
-    // バッファの作成
-    setBuffer();
 
     // シェーダーモジュールの作成
     vk::UniqueShaderModule vertShaderModule = createShaderModule("src/shaders/shader.vert.spv");
@@ -145,7 +115,43 @@ void VulkanApp::setup(){
     // スワップチェーンイメージ用フェンスの作成
     vk::FenceCreateInfo fenceCreateInfo{};
     swapchainImgFence = device->createFenceUnique(fenceCreateInfo);
-} 
+}
+
+VulkanApp::~VulkanApp() {
+}
+
+pl::Model VulkanApp::loadModel(std::filesystem::path file_path, uint32_t max_object_num) {
+    auto model = modelDb.load_model(file_path);
+
+    for (auto &mesh : model->meshes) {
+        std::vector<Vertex> meshVertices;
+        std::vector<uint32_t> meshIndices;
+
+        for (auto primitive : mesh.primitives) {
+            meshVertices.insert(meshVertices.end(), primitive.vertices.begin(), primitive.vertices.end());
+            meshIndices.insert(meshIndices.end(), primitive.indices.begin(), primitive.indices.end());
+        }
+        // インスタンスのあるオブジェクトの頂点バッファを作成
+        modelDb.vertexBuffers.push_back(createBuffer({}, meshVertices.size() * sizeof(Vertex), vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eHostVisible));
+        void *meshVertexBufMem = device->mapMemory(modelDb.vertexBuffers.back().second.get(), 0, meshVertices.size() * sizeof(Vertex));
+        std::memcpy(meshVertexBufMem, meshVertices.data(), meshVertices.size() * sizeof(Vertex));
+        device->unmapMemory(modelDb.vertexBuffers.back().second.get());
+
+        // インスタンスのあるオブジェクトのインデックスバッファを作成
+        modelDb.indexBuffers.push_back(createBuffer({}, meshIndices.size() * sizeof(uint32_t), vk::BufferUsageFlagBits::eIndexBuffer, vk::MemoryPropertyFlagBits::eHostVisible));
+        void *meshIndexBufMem = device->mapMemory(modelDb.indexBuffers.back().second.get(), 0, meshIndices.size() * sizeof(uint32_t));
+        std::memcpy(meshIndexBufMem, meshIndices.data(), meshIndices.size() * sizeof(uint32_t));
+        device->unmapMemory(modelDb.indexBuffers.back().second.get());
+
+        indexCounts.push_back(std::make_pair(meshIndices.size(), model->instanceAttributes.size()));
+    }
+    // インスタンスのあるオブジェクトのインスタンスバッファを作成
+    model->instanceAttributes.resize(max_object_num);
+    model->modelIndex = modelDb.instanceBuffers.size();
+    modelDb.instanceBuffers.emplace_back(createBuffer({}, model->instanceAttributes.size() * sizeof(InstanceAttribute), vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eHostVisible));
+
+    return Model{model};
+}
 
 // 物理デバイスの選択
 vk::PhysicalDevice VulkanApp::pickPhysicalDevice(const std::vector<const char *> &deviceExtensions, vk::PhysicalDeviceFeatures deviceFeatures) {
@@ -287,7 +293,7 @@ std::vector<pl::Object> modelToObjects(const pl::ModelDataBase &modelDb) {
         for (const auto &mesh : model.meshes) {
             pl::Object object;
             object.Instance = true;
-            object.mesh = const_cast<pl::Mesh*>(&mesh);
+            object.mesh = const_cast<pl::Mesh *>(&mesh);
             object.transform = pl::Transform();
             pl::InstanceAttribute attribute;
             attribute.model = glm::mat4(0.01f);
@@ -299,34 +305,34 @@ std::vector<pl::Object> modelToObjects(const pl::ModelDataBase &modelDb) {
 }
 
 // オブジェクトのダンプ
-void dumpMesh(const Mesh& mesh) {
+void dumpMesh(const Mesh &mesh) {
     std::cout << "start dumpMesh" << std::endl;
     std::cout << "Mesh:" << std::endl;
-    for (const auto& primitive : mesh.primitives) {
+    for (const auto &primitive : mesh.primitives) {
         std::cout << "  Primitive:" << std::endl;
         std::cout << "    Vertices:" << std::endl;
-        for (const auto& vertex : primitive.vertices) {
+        for (const auto &vertex : primitive.vertices) {
             std::cout << "      Position: (" << vertex.position.x << ", " << vertex.position.y << ", " << vertex.position.z << ")" << std::endl;
             std::cout << "      Normal: (" << vertex.normal.x << ", " << vertex.normal.y << ", " << vertex.normal.z << ")" << std::endl;
             std::cout << "      TexCoord: (" << vertex.texCoord.x << ", " << vertex.texCoord.y << ")" << std::endl;
         }
         std::cout << "    Indices:" << std::endl;
-        for (const auto& index : primitive.indices) {
+        for (const auto &index : primitive.indices) {
             std::cout << "      " << index << std::endl;
         }
     }
 }
 
-void dumpObject(const Object& object) {
-        std::cout << "start dumpObject" << std::endl;
-        std::cout << "Object:" << std::endl;
-        std::cout << "  Mesh: " << object.mesh << std::endl;
-        dumpMesh(*object.mesh);
-        std::cout << "  Transform:" << std::endl;
-        std::cout << "    Translation: (" << object.transform.translation.x << ", " << object.transform.translation.y << ", " << object.transform.translation.z << ")" << std::endl;
-        std::cout << "    Rotation: (" << object.transform.rotation.x << ", " << object.transform.rotation.y << ", " << object.transform.rotation.z << ", " << object.transform.rotation.w << ")" << std::endl;
-        std::cout << "    Scale: (" << object.transform.scale.x << ", " << object.transform.scale.y << ", " << object.transform.scale.z << ")" << std::endl;
-    }
+void dumpObject(const Object &object) {
+    std::cout << "start dumpObject" << std::endl;
+    std::cout << "Object:" << std::endl;
+    std::cout << "  Mesh: " << object.mesh << std::endl;
+    dumpMesh(*object.mesh);
+    std::cout << "  Transform:" << std::endl;
+    std::cout << "    Translation: (" << object.transform.translation.x << ", " << object.transform.translation.y << ", " << object.transform.translation.z << ")" << std::endl;
+    std::cout << "    Rotation: (" << object.transform.rotation.x << ", " << object.transform.rotation.y << ", " << object.transform.rotation.z << ", " << object.transform.rotation.w << ")" << std::endl;
+    std::cout << "    Scale: (" << object.transform.scale.x << ", " << object.transform.scale.y << ", " << object.transform.scale.z << ")" << std::endl;
+}
 
 // メモリタイプの検索
 uint32_t VulkanApp::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) {
@@ -426,46 +432,9 @@ std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory> VulkanApp::createBuffer(vk::
     return std::make_pair(std::move(buffer), std::move(bufferMemory));
 }
 
-void VulkanApp::setBuffer() {
-    
-    std::vector<Vertex> vertices;
-    std::vector<uint32_t> indices;
-
-    for (auto &model : modelDb.models) {
-        uint32_t index = 0;
-        model.modelIndex = index;
-        index++;
-
-        for(auto &mesh : model.meshes){
-            std::vector<Vertex> meshVertices;
-            std::vector<uint32_t> meshIndices;
-
-            for (auto primitive : mesh.primitives) {
-                meshVertices.insert(meshVertices.end(), primitive.vertices.begin(), primitive.vertices.end());
-                meshIndices.insert(meshIndices.end(), primitive.indices.begin(), primitive.indices.end());
-            }
-            // インスタンスのあるオブジェクトの頂点バッファを作成
-            modelDb.vertexBuffers.push_back(createBuffer({}, meshVertices.size() * sizeof(Vertex), vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eHostVisible));
-            void *meshVertexBufMem = device->mapMemory(modelDb.vertexBuffers.back().second.get(), 0, meshVertices.size() * sizeof(Vertex));
-            std::memcpy(meshVertexBufMem, meshVertices.data(), meshVertices.size() * sizeof(Vertex));
-            // インスタンスのあるオブジェクトのインデックスバッファを作成
-            modelDb.indexBuffers.push_back(createBuffer({}, meshIndices.size() * sizeof(uint32_t), vk::BufferUsageFlagBits::eIndexBuffer, vk::MemoryPropertyFlagBits::eHostVisible));
-            void *meshIndexBufMem = device->mapMemory(modelDb.indexBuffers.back().second.get(), 0, meshIndices.size() * sizeof(uint32_t));
-            std::memcpy(meshIndexBufMem, meshIndices.data(), meshIndices.size() * sizeof(uint32_t));
-
-            indexCounts.push_back(std::make_pair(meshIndices.size(), model.instanceAttributes.size()));
-        }
-    // インスタンスのあるオブジェクトのインスタンスバッファを作成
-    modelDb.instanceBuffers.emplace_back(createBuffer({}, model.instanceAttributes.size() * sizeof(InstanceAttribute), vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eHostVisible));
-    void *instanceBufMem = device->mapMemory(modelDb.instanceBuffers.back().second.get(), 0, model.instanceAttributes.size() * sizeof(InstanceAttribute));
-    std::memcpy(instanceBufMem, model.instanceAttributes.data(), model.instanceAttributes.size() * sizeof(InstanceAttribute));
-    }
-
-}
-
-void VulkanApp::drawGBuffer(uint32_t objectIndex){
+void VulkanApp::drawGBuffer(uint32_t objectIndex) {
     device->resetFences({swapchainImgFence.get()});
-    vk::ResultValue acquireResult = device->acquireNextImageKHR(swapchain.get(), UINT64_MAX,{} ,swapchainImgFence.get());
+    vk::ResultValue acquireResult = device->acquireNextImageKHR(swapchain.get(), UINT64_MAX, {}, swapchainImgFence.get());
 
     if (acquireResult.result != vk::Result::eSuccess) {
         throw std::runtime_error("スワップチェーンイメージの取得に失敗しました");
@@ -478,26 +447,25 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex){
 
     std::vector<vk::RenderingAttachmentInfo> colorAttachments = {
         vk::RenderingAttachmentInfo(
-            swapchainImageViews.at(imageIndex).get(),// imageView
+            swapchainImageViews.at(imageIndex).get(), // imageView
             vk::ImageLayout::eColorAttachmentOptimal, // imageLayout
-            vk::ResolveModeFlagBits::eNone, // resolveMode
-            {},                          // resolveImageView
-            vk::ImageLayout::eUndefined, // resolveImageLayout
-            vk::AttachmentLoadOp::eClear, // loadOp
-            vk::AttachmentStoreOp::eStore, // storeOp
-            vk::ClearValue{}             // clearValue
-        )
-    };
+            vk::ResolveModeFlagBits::eNone,           // resolveMode
+            {},                                       // resolveImageView
+            vk::ImageLayout::eUndefined,              // resolveImageLayout
+            vk::AttachmentLoadOp::eClear,             // loadOp
+            vk::AttachmentStoreOp::eStore,            // storeOp
+            vk::ClearValue{}                          // clearValue
+            )};
 
     vk::RenderingInfo renderingInfo(
-        {},//flags
-        vk::Rect2D({0, 0},{screenWidth, screenHeight}),//renderArea
-        1,//layerCount
-        0,//viewMask
-        colorAttachments.size(),//colorAttachmentCount
-        colorAttachments.data(),//pColorAttachments
-        nullptr,//pDepthAttachment
-        nullptr//pStencilAttachment
+        {},                                              // flags
+        vk::Rect2D({0, 0}, {screenWidth, screenHeight}), // renderArea
+        1,                                               // layerCount
+        0,                                               // viewMask
+        colorAttachments.size(),                         // colorAttachmentCount
+        colorAttachments.data(),                         // pColorAttachments
+        nullptr,                                         // pDepthAttachment
+        nullptr                                          // pStencilAttachment
     );
 
     graphicCommandBuffers.at(0)->reset();
@@ -514,9 +482,9 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex){
     // firstMemoryBarrier.setSubresourceRange({ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
 
     // graphicCommandBuffers.at(0)->pipelineBarrier(
-    //     vk::PipelineStageFlagBits::eBottomOfPipe, 
-    //     vk::PipelineStageFlagBits::eTopOfPipe, 
-    //     {}, 
+    //     vk::PipelineStageFlagBits::eBottomOfPipe,
+    //     vk::PipelineStageFlagBits::eTopOfPipe,
+    //     {},
     //     {},
     //     {},
     //     firstMemoryBarrier
@@ -526,22 +494,37 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex){
 
     vk::ClearValue clearValue(vk::ClearColorValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}));
 
-
     graphicCommandBuffers.at(0)->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get());
 
     graphicCommandBuffers.at(0)->pushConstants(pipelineLayout.get(), vk::ShaderStageFlagBits::eVertex, 0, sizeof(vpMatrix), &vpMatrix);
-    
-    for(auto model : drawGeometry){
-        graphicCommandBuffers.at(0)->bindVertexBuffers(0, {modelDb.vertexBuffers.at(model.pDat->modelIndex).first.get(), modelDb.instanceBuffers.at(model.pDat->modelIndex).first.get()}, {0, 0});
-        graphicCommandBuffers.at(0)->bindIndexBuffer(modelDb.indexBuffers.at(model.pDat->modelIndex).first.get(), 0, vk::IndexType::eUint32);
+
+    for (auto& model : modelDb.models) {
+        auto& [instanceBuf, instanceBufMem] = modelDb.instanceBuffers.at(model.modelIndex);
+
+        const auto instanceBufSize = model.instanceAttributes.size() * sizeof(InstanceAttribute);
+        const auto pInstanceBuf = device->mapMemory(instanceBufMem.get(), 0, instanceBufSize, {});
+        std::memcpy(pInstanceBuf, model.instanceAttributes.data(), instanceBufSize);
+
+        vk::MappedMemoryRange range;
+        range.memory = instanceBufMem.get();
+        range.offset = 0;
+        range.size = instanceBufSize;
+
+        device->flushMappedMemoryRanges({range});
+        device->unmapMemory(instanceBufMem.get());
+
+        graphicCommandBuffers.at(0)->bindVertexBuffers(0, {modelDb.vertexBuffers.at(model.modelIndex).first.get(), instanceBuf.get()}, {0, 0});
+        graphicCommandBuffers.at(0)->bindIndexBuffer(modelDb.indexBuffers.at(model.modelIndex).first.get(), 0, vk::IndexType::eUint32);
 
         uint32_t indexCount = 0;
-        for(auto &mesh : model.pDat->meshes){
-            for(auto &primitive : mesh.primitives){
+        for (auto &mesh : model.meshes) {
+            for (auto &primitive : mesh.primitives) {
                 indexCount += primitive.indices.size();
             }
         }
-        graphicCommandBuffers.at(0)->drawIndexed(indexCount, model.pDat->instanceAttributes.size(), 0, 0, 0);
+        graphicCommandBuffers.at(0)->drawIndexed(indexCount, model.instanceAttributes.size(), 0, 0, 0);
+
+        model.instanceAttributes.clear();
     }
 
     graphicCommandBuffers.at(0)->endRendering();
@@ -551,16 +534,15 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex){
     imageMemoryBarrier.oldLayout = vk::ImageLayout::eUndefined;
     imageMemoryBarrier.newLayout = vk::ImageLayout::ePresentSrcKHR;
     imageMemoryBarrier.image = swapchainImages[imageIndex];
-    imageMemoryBarrier.setSubresourceRange({ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
+    imageMemoryBarrier.setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
 
     graphicCommandBuffers.at(0)->pipelineBarrier(
-        vk::PipelineStageFlagBits::eColorAttachmentOutput, 
-        vk::PipelineStageFlagBits::eBottomOfPipe, 
-        {}, 
+        vk::PipelineStageFlagBits::eColorAttachmentOutput,
+        vk::PipelineStageFlagBits::eBottomOfPipe,
         {},
         {},
-        imageMemoryBarrier
-    );
+        {},
+        imageMemoryBarrier);
     graphicCommandBuffers.at(0)->end();
 
     vk::CommandBuffer submitCommandBuffer = graphicCommandBuffers.at(0).get();
@@ -568,18 +550,17 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex){
         {},
         {},
         {submitCommandBuffer},
-        {}
-    );
+        {});
 
-    device->waitIdle();
+    // device->waitIdle();
     // graphicsQueues.at(0).waitIdle();
 
     graphicsQueues.at(0).submit({submitInfo});
 
     vk::PresentInfoKHR presentInfo;
 
-    auto presentSwapchains = { swapchain.get() };
-    auto imgIndices = { imageIndex };
+    auto presentSwapchains = {swapchain.get()};
+    auto imgIndices = {imageIndex};
 
     presentInfo.swapchainCount = presentSwapchains.size();
     presentInfo.pSwapchains = presentSwapchains.begin();
@@ -592,12 +573,6 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex){
 
 void VulkanApp::drawFrame() {
     drawGBuffer(0);
-    drawGeometry.clear();
-}
-
-
-void VulkanApp::setObjectData() {
-
 }
 
 void VulkanApp::setCamera(glm::vec3 pos, glm::vec3 dir, glm::vec3 up) {
@@ -608,12 +583,10 @@ void VulkanApp::setProjection(float horizontalAngle) {
     vpMatrix.projection = glm::perspective(glm::radians(horizontalAngle), static_cast<float>(screenWidth) / static_cast<float>(screenHeight), 0.1f, 100.0f);
 }
 
-
 void VulkanApp::drawModel(const Model &model, glm::mat4x4 modelMatrix) {
-    
-
-
+    InstanceAttribute attr;
+    attr.model = modelMatrix;
+    model.pDat->instanceAttributes.push_back(attr);
 }
-
 
 } // namespace pl

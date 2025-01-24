@@ -10,12 +10,15 @@ int main() {
         std::cout << "Model loaded" << std::endl;
         //renderer.loadObject("example/assets/test.glb");
         std::cout << "Model loaded" << std::endl;
-        renderer.setup();
+
+        float theta = 0;
 
         while(sys.frameUpdate()) {
-            renderer.setCamera(glm::vec3(2.0, 0.0, 0.0), glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+            theta += 0.001f;
+
+            renderer.setCamera(glm::vec3(cos(theta) * 4.0f, sin(theta) * 4.0f, 0.0), glm::vec3(-cos(theta), -sin(theta), 0.0), glm::vec3(0.0, 0.0, 1.0));
             renderer.setProjection(45.0);
-            renderer.setObjectData();
+            renderer.drawModel(test_model, glm::identity<glm::mat4>());
         }
     } catch(std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;

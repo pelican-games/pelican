@@ -353,7 +353,6 @@ int main() {
     std::cout << "Model loaded" << std::endl;
     //renderer.loadObject("example/assets/test.glb");
     std::cout << "Model loaded" << std::endl;
-    renderer.setup();
 
     std::cout << "Game is Start now!" << std::endl;
     btDiscreteDynamicsWorld* dynamicsWorld;
@@ -374,7 +373,6 @@ int main() {
         dynamicsWorld->stepSimulation(1 / 60.f, 10);
         renderer.setCamera(glm::vec3(2.0, 0.0, 0.0), glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
         renderer.setProjection(45.0);   
-        renderer.setObjectData();
     }
     std::cout << "Game is correctly End." << std::endl;
 }

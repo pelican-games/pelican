@@ -5,8 +5,6 @@ int main() {
         pl::System sys(800, 600);
 
         pl::Renderer& renderer = sys.getDefaultRenderer();
-        renderer.setup();
-
         auto scene = pl::loadScene("example/assets/instanceTest2.glb");
 
         for(auto& [name, objs] : scene.objects) {

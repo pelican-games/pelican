@@ -427,70 +427,38 @@ std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory> VulkanApp::createBuffer(vk::
 }
 
 void VulkanApp::setBuffer() {
-    bool thereIsBackground = false;//背景(インスタンスの無いオブジェクト)があるかどうか
     
-    std::vector<pl::Object> scene = modelToObjects(modelDb);
-
-    for(auto object : scene){
-        //dumpObject(object);
-    }
-
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
 
-    // インスタンスの無いオブジェクトの頂点数とインデックス数をカウント
-    for (auto object : scene) {
-        if (!object.Instance) {
-            thereIsBackground = true;
-            for (auto primitive : object.mesh->primitives) {
-                vertices.insert(vertices.end(), primitive.vertices.begin(), primitive.vertices.end());
-                indices.insert(indices.end(), primitive.indices.begin(), primitive.indices.end());
-            }
-        }
-    }
+    for (auto &model : modelDb.models) {
+        uint32_t index = 0;
+        model.modelIndex = index;
+        index++;
 
-    if(thereIsBackground){
-        vertexBuffers.push_back(createBuffer({}, vertices.size() * sizeof(Vertex), vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eHostVisible));
-        void *vertexBufMem = device->mapMemory(vertexBuffers.at(0).second.get(), 0, vertices.size() * sizeof(Vertex));
-        std::memcpy(vertexBufMem, vertices.data(), vertices.size() * sizeof(Vertex));
-
-        indexBuffers.push_back(createBuffer({}, indices.size() * sizeof(uint32_t), vk::BufferUsageFlagBits::eIndexBuffer, vk::MemoryPropertyFlagBits::eHostVisible));
-        void *indexBufMem = device->mapMemory(indexBuffers.at(0).second.get(), 0, indices.size() * sizeof(uint32_t));
-        std::memcpy(indexBufMem, indices.data(), indices.size() * sizeof(uint32_t));
-
-        InstanceAttribute simpleInstance = {
-            glm::mat4(1.0f)};
-        instanceBuffers.push_back(createBuffer({}, sizeof(InstanceAttribute), vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eHostVisible));
-        void *instanceBufMem = device->mapMemory(instanceBuffers.at(0).second.get(), 0, sizeof(InstanceAttribute));
-        std::memcpy(instanceBufMem, &simpleInstance, sizeof(InstanceAttribute));
-
-        indexCounts.push_back(std::make_pair(indices.size(), 1));
-    }
-    // インスタンスのあるオブジェクト
-    for (auto object : scene) {
-        if (object.Instance) {
+        for(auto &mesh : model.meshes){
             std::vector<Vertex> meshVertices;
             std::vector<uint32_t> meshIndices;
 
-            for (auto primitive : object.mesh->primitives) {
+            for (auto primitive : mesh.primitives) {
                 meshVertices.insert(meshVertices.end(), primitive.vertices.begin(), primitive.vertices.end());
                 meshIndices.insert(meshIndices.end(), primitive.indices.begin(), primitive.indices.end());
             }
             // インスタンスのあるオブジェクトの頂点バッファを作成
-            vertexBuffers.push_back(createBuffer({}, meshVertices.size() * sizeof(Vertex), vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eHostVisible));
-            void *meshVertexBufMem = device->mapMemory(vertexBuffers.back().second.get(), 0, meshVertices.size() * sizeof(Vertex));
+            modelDb.vertexBuffers.push_back(createBuffer({}, meshVertices.size() * sizeof(Vertex), vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eHostVisible));
+            void *meshVertexBufMem = device->mapMemory(modelDb.vertexBuffers.back().second.get(), 0, meshVertices.size() * sizeof(Vertex));
             std::memcpy(meshVertexBufMem, meshVertices.data(), meshVertices.size() * sizeof(Vertex));
             // インスタンスのあるオブジェクトのインデックスバッファを作成
-            indexBuffers.push_back(createBuffer({}, meshIndices.size() * sizeof(uint32_t), vk::BufferUsageFlagBits::eIndexBuffer, vk::MemoryPropertyFlagBits::eHostVisible));
-            void *meshIndexBufMem = device->mapMemory(indexBuffers.back().second.get(), 0, meshIndices.size() * sizeof(uint32_t));
+            modelDb.indexBuffers.push_back(createBuffer({}, meshIndices.size() * sizeof(uint32_t), vk::BufferUsageFlagBits::eIndexBuffer, vk::MemoryPropertyFlagBits::eHostVisible));
+            void *meshIndexBufMem = device->mapMemory(modelDb.indexBuffers.back().second.get(), 0, meshIndices.size() * sizeof(uint32_t));
             std::memcpy(meshIndexBufMem, meshIndices.data(), meshIndices.size() * sizeof(uint32_t));
-            // インスタンスのあるオブジェクトのインスタンスバッファを作成
-            instanceBuffers.push_back(createBuffer({}, object.instanceAttributes.size() * sizeof(InstanceAttribute), vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eHostVisible));
-            void *instanceBufMem = device->mapMemory(instanceBuffers.back().second.get(), 0, object.instanceAttributes.size() * sizeof(InstanceAttribute));
-            std::memcpy(instanceBufMem, object.instanceAttributes.data(), object.instanceAttributes.size() * sizeof(InstanceAttribute));
 
-            indexCounts.push_back(std::make_pair(meshIndices.size(), object.instanceAttributes.size()));
+            indexCounts.push_back(std::make_pair(meshIndices.size(), model.instanceAttributes.size()));
         }
+    // インスタンスのあるオブジェクトのインスタンスバッファを作成
+    modelDb.instanceBuffers.emplace_back(createBuffer({}, model.instanceAttributes.size() * sizeof(InstanceAttribute), vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eHostVisible));
+    void *instanceBufMem = device->mapMemory(modelDb.instanceBuffers.back().second.get(), 0, model.instanceAttributes.size() * sizeof(InstanceAttribute));
+    std::memcpy(instanceBufMem, model.instanceAttributes.data(), model.instanceAttributes.size() * sizeof(InstanceAttribute));
     }
 
 }
@@ -563,12 +531,17 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex){
 
     graphicCommandBuffers.at(0)->pushConstants(pipelineLayout.get(), vk::ShaderStageFlagBits::eVertex, 0, sizeof(vpMatrix), &vpMatrix);
     
-    for(auto objectIndex = 0; objectIndex < vertexBuffers.size(); objectIndex++){
-        graphicCommandBuffers.at(0)->bindVertexBuffers(0, {vertexBuffers.at(objectIndex).first.get(), instanceBuffers.at(objectIndex).first.get()}, {0, 0});
-        graphicCommandBuffers.at(0)->bindIndexBuffer(indexBuffers.at(objectIndex).first.get(), 0, vk::IndexType::eUint32);
+    for(auto model : drawGeometry){
+        graphicCommandBuffers.at(0)->bindVertexBuffers(0, {modelDb.vertexBuffers.at(model.pDat->modelIndex).first.get(), modelDb.instanceBuffers.at(model.pDat->modelIndex).first.get()}, {0, 0});
+        graphicCommandBuffers.at(0)->bindIndexBuffer(modelDb.indexBuffers.at(model.pDat->modelIndex).first.get(), 0, vk::IndexType::eUint32);
 
-        graphicCommandBuffers.at(0)->drawIndexed(indexCounts.at(objectIndex).first, 
-                                                indexCounts.at(objectIndex).second, 0, 0, 0);
+        uint32_t indexCount = 0;
+        for(auto &mesh : model.pDat->meshes){
+            for(auto &primitive : mesh.primitives){
+                indexCount += primitive.indices.size();
+            }
+        }
+        graphicCommandBuffers.at(0)->drawIndexed(indexCount, model.pDat->instanceAttributes.size(), 0, 0, 0);
     }
 
     graphicCommandBuffers.at(0)->endRendering();
@@ -619,6 +592,7 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex){
 
 void VulkanApp::drawFrame() {
     drawGBuffer(0);
+    drawGeometry.clear();
 }
 
 
@@ -635,6 +609,11 @@ void VulkanApp::setProjection(float horizontalAngle) {
 }
 
 
+void VulkanApp::drawModel(const Model &model, glm::mat4x4 modelMatrix) {
+    
+
+
+}
 
 
 } // namespace pl

@@ -16,7 +16,7 @@ void PipelineBuilder::clear() {
     pipelineLayout = vk::UniquePipelineLayout();
 }
 
-vk::UniquePipeline PipelineBuilder::buildPipeline(vk::Device device, std::vector<vk::PipelineShaderStageCreateInfo> shaderStagesInput, uint32_t WIDTH, uint32_t HEIGHT) {
+vk::UniquePipeline PipelineBuilder::buildPipeline(vk::Device device, vk::UniquePipelineLayout& pipelineLayout, std::vector<vk::PipelineShaderStageCreateInfo> shaderStagesInput, uint32_t WIDTH, uint32_t HEIGHT) {
 
     // 入力シェーダーステージを設定
     shaderStages = shaderStagesInput;
@@ -126,15 +126,27 @@ vk::UniquePipeline PipelineBuilder::buildPipeline(vk::Device device, std::vector
         dynamicStates.data()  // pDynamicStates
     );
 
+    // PipelineLayoutの設定
+
+    std::vector<vk::PushConstantRange> pushConstantRanges;
+
+    vk::PushConstantRange viewProjeMatrix(
+        vk::ShaderStageFlagBits::eVertex, // stageFlags
+        0,                                // offset
+        sizeof(pl::VPMatrix)                // size
+    );
+
+    pushConstantRanges.push_back(viewProjeMatrix);
+    
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo(
         {},      // flags
         0,       // setLayoutCount
         nullptr, // pSetLayouts
-        0,       // pushConstantRangeCount
-        nullptr  // pPushConstantRanges
+        pushConstantRanges.size(),       // pushConstantRangeCount
+        pushConstantRanges.data()        // pPushConstantRanges
     );
 
-    vk::UniquePipelineLayout pipelineLayout = device.createPipelineLayoutUnique(pipelineLayoutInfo);
+    pipelineLayout = device.createPipelineLayoutUnique(pipelineLayoutInfo);
 
     // RenderingCreateInfoの設定
     std::vector<vk::Format> colorAttachmentFormats = {vk::Format::eB8G8R8A8Unorm};
@@ -160,7 +172,7 @@ vk::UniquePipeline PipelineBuilder::buildPipeline(vk::Device device, std::vector
         nullptr,              // pDepthStencilState
         &colorBlending,       // pColorBlendState
         VK_NULL_HANDLE,       // pDynamicState
-        pipelineLayout.get(), // layout
+        pipelineLayout.get(),       // layout
         VK_NULL_HANDLE,       // renderPass
         0,                    // subpass
         VK_NULL_HANDLE,       // basePipelineHandle

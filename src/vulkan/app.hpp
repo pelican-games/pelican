@@ -14,6 +14,8 @@ class VulkanApp : public pl::Renderer {
         pl::ObjectDataBase objDb;
         pl::ModelDataBase modelDb;
 
+        pl::VPMatrix vpMatrix;
+
     public:
         VulkanApp(GLFWwindow* window, unsigned int screenWidth, unsigned int screenHeight);
         ~VulkanApp() override;
@@ -37,6 +39,7 @@ class VulkanApp : public pl::Renderer {
         std::vector<std::pair<uint32_t, uint32_t>> indexCounts; //頂点数(のべ)とインスタンス数
 
         vk::UniquePipeline pipeline;
+        vk::UniquePipelineLayout pipelineLayout;
         std::unique_ptr<PipelineBuilder> pipelineBuilder;
 
         VkSurfaceKHR c_surface;

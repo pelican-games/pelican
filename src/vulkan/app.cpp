@@ -138,7 +138,7 @@ void VulkanApp::setup(){
         vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eFragment, fragShaderModule.get(), "main")};
 
     pipelineBuilder = std::make_unique<PipelineBuilder>();
-    pipeline = pipelineBuilder->buildPipeline(device.get(), shaderStages, screenWidth, screenHeight);
+    pipeline = pipelineBuilder->buildPipeline(device.get(), pipelineLayout, shaderStages, screenWidth, screenHeight);
 
     // スワップチェーンの作成
     createSwapchain();
@@ -432,7 +432,7 @@ void VulkanApp::setBuffer() {
     std::vector<pl::Object> scene = modelToObjects(modelDb);
 
     for(auto object : scene){
-        dumpObject(object);
+        //dumpObject(object);
     }
 
     std::vector<Vertex> vertices;
@@ -560,12 +560,17 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex){
 
 
     graphicCommandBuffers.at(0)->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get());
-    
-    graphicCommandBuffers.at(0)->bindVertexBuffers(0, {vertexBuffers.at(objectIndex).first.get(), instanceBuffers.at(objectIndex).first.get()}, {0, 0});
-    graphicCommandBuffers.at(0)->bindIndexBuffer(indexBuffers.at(objectIndex).first.get(), 0, vk::IndexType::eUint32);
 
-    graphicCommandBuffers.at(0)->drawIndexed(indexCounts.at(objectIndex).first, 
-                                             indexCounts.at(objectIndex).second, 0, 0, 0);
+    graphicCommandBuffers.at(0)->pushConstants(pipelineLayout.get(), vk::ShaderStageFlagBits::eVertex, 0, sizeof(vpMatrix), &vpMatrix);
+    
+    for(auto objectIndex = 0; objectIndex < vertexBuffers.size(); objectIndex++){
+        graphicCommandBuffers.at(0)->bindVertexBuffers(0, {vertexBuffers.at(objectIndex).first.get(), instanceBuffers.at(objectIndex).first.get()}, {0, 0});
+        graphicCommandBuffers.at(0)->bindIndexBuffer(indexBuffers.at(objectIndex).first.get(), 0, vk::IndexType::eUint32);
+
+        graphicCommandBuffers.at(0)->drawIndexed(indexCounts.at(objectIndex).first, 
+                                                indexCounts.at(objectIndex).second, 0, 0, 0);
+    }
+
     graphicCommandBuffers.at(0)->endRendering();
 
     vk::ImageMemoryBarrier imageMemoryBarrier;
@@ -613,9 +618,7 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex){
 }
 
 void VulkanApp::drawFrame() {
-        for(uint32_t i = 0; i < vertexBuffers.size(); i++) {
-            drawGBuffer(i);
-        }
+    drawGBuffer(0);
 }
 
 
@@ -624,8 +627,11 @@ void VulkanApp::setObjectData() {
 }
 
 void VulkanApp::setCamera(glm::vec3 pos, glm::vec3 dir, glm::vec3 up) {
+    vpMatrix.view = glm::lookAt(pos, dir, up);
 }
+
 void VulkanApp::setProjection(float horizontalAngle) {
+    vpMatrix.projection = glm::perspective(glm::radians(horizontalAngle), static_cast<float>(screenWidth) / static_cast<float>(screenHeight), 0.1f, 100.0f);
 }
 
 

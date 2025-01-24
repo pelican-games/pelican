@@ -373,6 +373,7 @@ int main() {
         std::cout << transform.getOrigin().getX() << " " << transform.getOrigin().getY() << " " << transform.getOrigin().getZ() << std::endl;
         dynamicsWorld->stepSimulation(1 / 60.f, 10);
         renderer.setCamera(glm::vec3(2.0, 0.0, 0.0), glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+        renderer.setProjection(45.0);   
         renderer.setObjectData();
     }
     std::cout << "Game is correctly End." << std::endl;

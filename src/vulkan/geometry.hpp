@@ -81,12 +81,13 @@ struct InstanceAttribute {
 struct InstanceUpdate {
     std::vector<InstanceAttribute> sphere;
     std::vector<InstanceAttribute> module;
-}
+};
 
 struct Object {
     bool Instance;
     Mesh* mesh;
     std::vector<InstanceAttribute> instanceAttributes;
+    Transform transform;
 
     static vk::VertexInputBindingDescription getBindingDescription() {
         return vk::VertexInputBindingDescription(1, sizeof(glm::vec4) * 4, vk::VertexInputRate::eInstance);

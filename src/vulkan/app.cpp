@@ -98,6 +98,18 @@ VulkanApp::VulkanApp(GLFWwindow *window, unsigned int screenWidth, unsigned int 
     // イメージの作成
     image = createImage(screenWidth, screenHeight, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled);
 
+}
+
+VulkanApp::~VulkanApp() {
+}
+
+
+void VulkanApp::loadObject(std::filesystem::path file_path) {
+    const pl::ObjectDataBase *objDbPtr = modelDb.load_object(file_path);
+    objDb = *objDbPtr;
+}
+
+void VulkanApp::setup(){
     // バッファの作成
     setBuffer();
 
@@ -118,10 +130,7 @@ VulkanApp::VulkanApp(GLFWwindow *window, unsigned int screenWidth, unsigned int 
     // スワップチェーンイメージ用フェンスの作成
     vk::FenceCreateInfo fenceCreateInfo{};
     swapchainImgFence = device->createFenceUnique(fenceCreateInfo);
-}
-
-VulkanApp::~VulkanApp() {
-}
+} 
 
 // 物理デバイスの選択
 vk::PhysicalDevice VulkanApp::pickPhysicalDevice(const std::vector<const char *> &deviceExtensions, vk::PhysicalDeviceFeatures deviceFeatures) {
@@ -355,7 +364,7 @@ std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory> VulkanApp::createBuffer(vk::
 }
 
 void VulkanApp::setBuffer() {
-    scene = objDb.objects;
+    std::vector<pl::Object> scene = objDb.objects;
 
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
@@ -414,9 +423,9 @@ void VulkanApp::setBuffer() {
     }
 }
 
-void VulkanApp::drawFrame() {
+void VulkanApp::drawGBuffer(uint32_t objectIndex){
     device->resetFences({swapchainImgFence.get()});
-    vk::ResultValue acquireResult = device->acquireNextImageKHR(swapchain.get(), UINT64_MAX, {}, swapchainImgFence.get());
+    vk::ResultValue acquireResult = device->acquireNextImageKHR(swapchain.get(), UINT64_MAX,{} ,swapchainImgFence.get());
 
     if (acquireResult.result != vk::Result::eSuccess) {
         throw std::runtime_error("スワップチェーンイメージの取得に失敗しました");
@@ -429,25 +438,26 @@ void VulkanApp::drawFrame() {
 
     std::vector<vk::RenderingAttachmentInfo> colorAttachments = {
         vk::RenderingAttachmentInfo(
-            swapchainImageViews.at(imageIndex).get(), // imageView
+            swapchainImageViews.at(imageIndex).get(),// imageView
             vk::ImageLayout::eColorAttachmentOptimal, // imageLayout
-            vk::ResolveModeFlagBits::eNone,           // resolveMode
-            {},                                       // resolveImageView
-            vk::ImageLayout::eUndefined,              // resolveImageLayout
-            vk::AttachmentLoadOp::eClear,             // loadOp
-            vk::AttachmentStoreOp::eStore,            // storeOp
-            vk::ClearValue{}                          // clearValue
-            )};
+            vk::ResolveModeFlagBits::eNone, // resolveMode
+            {},                          // resolveImageView
+            vk::ImageLayout::eUndefined, // resolveImageLayout
+            vk::AttachmentLoadOp::eClear, // loadOp
+            vk::AttachmentStoreOp::eStore, // storeOp
+            vk::ClearValue{}             // clearValue
+        )
+    };
 
     vk::RenderingInfo renderingInfo(
-        {},                                              // flags
-        vk::Rect2D({0, 0}, {screenWidth, screenHeight}), // renderArea
-        1,                                               // layerCount
-        0,                                               // viewMask
-        colorAttachments.size(),                         // colorAttachmentCount
-        colorAttachments.data(),                         // pColorAttachments
-        nullptr,                                         // pDepthAttachment
-        nullptr                                          // pStencilAttachment
+        {},//flags
+        vk::Rect2D({0, 0},{screenWidth, screenHeight}),//renderArea
+        1,//layerCount
+        0,//viewMask
+        colorAttachments.size(),//colorAttachmentCount
+        colorAttachments.data(),//pColorAttachments
+        nullptr,//pDepthAttachment
+        nullptr//pStencilAttachment
     );
 
     graphicCommandBuffers.at(0)->reset();
@@ -455,19 +465,35 @@ void VulkanApp::drawFrame() {
     vk::CommandBufferBeginInfo beginInfo;
     graphicCommandBuffers.at(0)->begin(beginInfo);
 
+    // vk::ImageMemoryBarrier firstMemoryBarrier;
+    // firstMemoryBarrier.srcAccessMask = vk::AccessFlagBits::eNone;
+    // firstMemoryBarrier.dstAccessMask = vk::AccessFlagBits::eNone;
+    // firstMemoryBarrier.oldLayout = vk::ImageLayout::eUndefined;
+    // firstMemoryBarrier.newLayout = vk::ImageLayout::eColorAttachmentOptimal;
+    // firstMemoryBarrier.image = swapchainImages[imageIndex];
+    // firstMemoryBarrier.setSubresourceRange({ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
+
+    // graphicCommandBuffers.at(0)->pipelineBarrier(
+    //     vk::PipelineStageFlagBits::eBottomOfPipe, 
+    //     vk::PipelineStageFlagBits::eTopOfPipe, 
+    //     {}, 
+    //     {},
+    //     {},
+    //     firstMemoryBarrier
+    // );
+
     graphicCommandBuffers.at(0)->beginRendering(renderingInfo);
 
     vk::ClearValue clearValue(vk::ClearColorValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}));
 
+
     graphicCommandBuffers.at(0)->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get());
+    
+    graphicCommandBuffers.at(0)->bindVertexBuffers(0, {vertexBuffers.at(objectIndex).first.get(), instanceBuffers.at(objectIndex).first.get()}, {0, 0});
+    graphicCommandBuffers.at(0)->bindIndexBuffer(indexBuffers.at(objectIndex).first.get(), 0, vk::IndexType::eUint32);
 
-    for (int i = 0; i < scene.size(); i++) {
-        graphicCommandBuffers.at(0)->bindVertexBuffers(0, {vertexBuffers.at(i).first.get(), instanceBuffers.at(i).first.get()}, {0, 0});
-        graphicCommandBuffers.at(0)->bindIndexBuffer(indexBuffers.at(i).first.get(), 0, vk::IndexType::eUint32);
-
-        graphicCommandBuffers.at(0)->drawIndexed(indexCounts.at(i).first,
-                                                 indexCounts.at(i).second, 0, 0, 0);
-    }
+    graphicCommandBuffers.at(0)->drawIndexed(indexCounts.at(objectIndex).first, 
+                                             indexCounts.at(objectIndex).second, 0, 0, 0);
     graphicCommandBuffers.at(0)->endRendering();
 
     vk::ImageMemoryBarrier imageMemoryBarrier;
@@ -475,24 +501,25 @@ void VulkanApp::drawFrame() {
     imageMemoryBarrier.oldLayout = vk::ImageLayout::eUndefined;
     imageMemoryBarrier.newLayout = vk::ImageLayout::ePresentSrcKHR;
     imageMemoryBarrier.image = swapchainImages[imageIndex];
-    imageMemoryBarrier.setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
+    imageMemoryBarrier.setSubresourceRange({ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
 
     graphicCommandBuffers.at(0)->pipelineBarrier(
-        vk::PipelineStageFlagBits::eColorAttachmentOutput,
-        vk::PipelineStageFlagBits::eBottomOfPipe,
+        vk::PipelineStageFlagBits::eColorAttachmentOutput, 
+        vk::PipelineStageFlagBits::eBottomOfPipe, 
+        {}, 
         {},
         {},
-        {},
-        imageMemoryBarrier);
+        imageMemoryBarrier
+    );
     graphicCommandBuffers.at(0)->end();
 
     vk::CommandBuffer submitCommandBuffer = graphicCommandBuffers.at(0).get();
-    auto submitCommandBuffers = {submitCommandBuffer};
     vk::SubmitInfo submitInfo(
         {},
         {},
-        submitCommandBuffers,
-        {});
+        {submitCommandBuffer},
+        {}
+    );
 
     // device->waitIdle();
     // graphicsQueues.at(0).waitIdle();
@@ -501,8 +528,8 @@ void VulkanApp::drawFrame() {
 
     vk::PresentInfoKHR presentInfo;
 
-    auto presentSwapchains = {swapchain.get()};
-    auto imgIndices = {imageIndex};
+    auto presentSwapchains = { swapchain.get() };
+    auto imgIndices = { imageIndex };
 
     presentInfo.swapchainCount = presentSwapchains.size();
     presentInfo.pSwapchains = presentSwapchains.begin();
@@ -513,12 +540,17 @@ void VulkanApp::drawFrame() {
     graphicsQueues.at(0).waitIdle();
 }
 
-setObjectData() {
+void VulkanApp::drawFrame() {
+        for(uint32_t i = 0; i < vertexBuffers.size(); i++) {
+            drawGBuffer(i);
+        }
+}
+
+
+void VulkanApp::setObjectData() {
 
 }
 
-void VulkanApp::drawModel(const Model &model, glm::mat4x4 modelMatrix) {
-}
 void VulkanApp::setCamera(glm::vec3 pos, glm::vec3 dir, glm::vec3 up) {
 }
 void VulkanApp::setProjection(float horizontalAngle) {
@@ -526,5 +558,6 @@ void VulkanApp::setProjection(float horizontalAngle) {
 pl::Model VulkanApp::loadModel(std::filesystem::path file_path) {
     return Model{ modelDb.load_model(file_path) };
 }
+
 
 } // namespace pl

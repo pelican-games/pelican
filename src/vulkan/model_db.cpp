@@ -4,6 +4,7 @@
 #include "model_db.hpp"
 #include <filesystem>
 #include <tiny_gltf.h>
+#include <iostream>
 
 namespace pl {
 
@@ -13,10 +14,11 @@ glm::vec4 to_vec4(std::vector<T> v) {
 }
 
 class ModelLoader {
-
+    ObjectDataBase objDb;
     ModelDataBase &db;
     std::vector<pl::Material *> p_materials;
     pl::ModelData *p_model;
+    pl::ObjectDataBase *p_object;
     tinygltf::Model model;
 
     template <uint32_t expectType, uint32_t expectComponentType, class F>
@@ -148,7 +150,7 @@ class ModelLoader {
             transform.translation = glm::vec3(0, 0, 0);
 
         if (node.rotation.size() == 4)
-            transform.rotation = glm::quat{node.rotation[0], node.rotation[1], node.rotation[2], node.rotation[3]};
+            transform.rotation = glm::quat{static_cast<float>(node.rotation[0]), static_cast<float>(node.rotation[1]), static_cast<float>(node.rotation[2]), static_cast<float>(node.rotation[3])};
         else
             transform.rotation = glm::quat(0, 0, 0, 1);
 
@@ -169,6 +171,10 @@ class ModelLoader {
                 meshData.primitives.push_back(primitiveData);
             }
         }
+        Object object;
+        object.mesh = &meshData;
+        object.transform = transform;
+        objDb.objects.push_back(std::move(object)); 
     }
 
     pl::Material *load_material(const tinygltf::Material &material) {
@@ -184,7 +190,7 @@ class ModelLoader {
     }
 
   public:
-    ModelLoader(ModelDataBase &db, std::filesystem::path file_path) : db{db} {
+    ModelLoader( ModelDataBase &db, std::filesystem::path file_path) : db{db} {
         pl::Mesh mesh;
 
         tinygltf::TinyGLTF loader;
@@ -211,12 +217,31 @@ class ModelLoader {
         p_model = &db.models.front();
     }
 
+    void dump() const {
+        for (const auto &object : objDb.objects) {
+            std::cout << "Object:" << std::endl;
+            std::cout << "  Mesh: " << object.mesh << std::endl;
+            std::cout << "  Transform:" << std::endl;
+            std::cout << "    Translation: (" << object.transform.translation.x << ", " << object.transform.translation.y << ", " << object.transform.translation.z << ")" << std::endl;
+            std::cout << "    Rotation: (" << object.transform.rotation.x << ", " << object.transform.rotation.y << ", " << object.transform.rotation.z << ", " << object.transform.rotation.w << ")" << std::endl;
+            std::cout << "    Scale: (" << object.transform.scale.x << ", " << object.transform.scale.y << ", " << object.transform.scale.z << ")" << std::endl;
+        }
+    }
+
     pl::ModelData *getModel() const { return p_model; }
+    const pl::ObjectDataBase *getObject() const { return &objDb; }
 };
+    
 
 const pl::ModelData *ModelDataBase::load_model(std::filesystem::path file_path) {
     ModelLoader loader{*this, file_path};
     return loader.getModel();
+}
+
+const pl::ObjectDataBase *ModelDataBase::load_object(std::filesystem::path file_path) {
+    ModelLoader loader{*this, file_path};
+    loader.dump();
+    return loader.getObject();
 }
 
 } // namespace pl

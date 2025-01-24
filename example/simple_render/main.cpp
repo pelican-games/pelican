@@ -6,6 +6,9 @@ int main() {
 
         pl::Renderer& renderer = sys.getDefaultRenderer();
         pl::Model test_model = renderer.loadModel("example/assets/test.glb");
+        renderer.loadObject("example/assets/test.glb");
+        renderer.setup();
+
         while(sys.frameUpdate()) {
             renderer.setCamera(glm::vec3(2.0, 0.0, 0.0), glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
             renderer.setObjectData();

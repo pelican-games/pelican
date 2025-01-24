@@ -19,6 +19,7 @@ class VulkanApp : public pl::Renderer {
         ~VulkanApp() override;
 
     private:
+    
         vk::UniqueInstance instance;
         vk::PhysicalDevice physicalDevice;
         vk::UniqueDevice device;
@@ -49,7 +50,7 @@ class VulkanApp : public pl::Renderer {
         //イメージ
         vk::UniqueImage image;
 
-        std::vector<pl::Object> scene;
+        //std::vector<pl::Object> scene;
 
         //vulkan初期化用関数
         vk::PhysicalDevice pickPhysicalDevice(const std::vector<const char*>& deviceExtensions, vk::PhysicalDeviceFeatures deviceFeatures);
@@ -75,17 +76,25 @@ class VulkanApp : public pl::Renderer {
         //頂点バッファの作成
         std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory> createBuffer(vk::BufferCreateFlags flags, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
         void setBuffer();
+
         
+
+        //レンダリング
+        void drawGBuffer(uint32_t objectIndex);  
+
     public:
         //レンダリング
         void drawFrame() override;
 
         //void drawModel(const Model &model, glm::mat4x4 modelMatrix) override;
 
-        void setObjectData(std::vector<InstanceAttribute>) override;
+        void setObjectData();
         void setCamera(glm::vec3 pos, glm::vec3 dir, glm::vec3 up) override;
         void setProjection(float horizontalAngle) override;
         pl::Model loadModel(std::filesystem::path file_path) override;
+        void loadObject(std::filesystem::path file_path) override;
+        //セットアップ2
+        void setup();
 };
 
 }

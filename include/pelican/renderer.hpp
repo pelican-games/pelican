@@ -13,6 +13,11 @@ struct Model {
     pl::ModelData *pDat;
 };
 
+struct UIImageData;
+struct UIImage {
+    pl::UIImageData *pDat;
+};
+
 class Renderer {
   public:
     virtual void drawModel(const Model &model, glm::mat4x4 modelMatrix) = 0;
@@ -20,6 +25,9 @@ class Renderer {
     virtual void setProjection(float horizontalAngle) = 0;
     virtual pl::Model loadModel(std::filesystem::path file_path, uint32_t max_object_num = 128) = 0;
     //virtual void loadObject(std::filesystem::path file_path) = 0;
+
+    virtual void drawUIImage(const UIImage &image, int x, int y, int texX, int texY, int texW, int texH, float scaleX, float scaleY) = 0;
+    virtual pl::UIImage loadUIImage(std::filesystem::path file_path) = 0;
     virtual void drawFrame() = 0;
     virtual ~Renderer() = default;
 };

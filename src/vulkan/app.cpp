@@ -110,6 +110,20 @@ VulkanApp::VulkanApp(GLFWwindow *window, unsigned int screenWidth, unsigned int 
     pipelineBuilder = std::make_unique<PipelineBuilder>();
     pipeline = pipelineBuilder->buildPipeline(device.get(), pipelineLayout, shaderStages, screenWidth, screenHeight);
 
+    uiimageDb.emplace(device.get(), physicalDevice, graphicsQueues[0], graphicCommandPoolCreateInfo.queueFamilyIndex);
+
+    // シェーダーモジュールの作成
+    vk::UniqueShaderModule vertShader2DModule = createShaderModule("src/shaders/shader2d.vert.spv");
+    vk::UniqueShaderModule fragShader2DModule = createShaderModule("src/shaders/shader2d.frag.spv");
+
+    // パイプラインの作成
+    std::vector<vk::PipelineShaderStageCreateInfo> shader2DStages = {
+        vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eVertex, vertShader2DModule.get(), "main"),
+        vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eFragment, fragShader2DModule.get(), "main")};
+
+    pipeline2DBuilder = std::make_unique<Pipeline2DBuilder>();
+    pipeline2D = pipeline2DBuilder->buildPipeline(device.get(), pipeline2DLayout, {uiimageDb->descLayout.get()}, shader2DStages, screenWidth, screenHeight);
+
     // スワップチェーンの作成
     createSwapchain();
     // スワップチェーンイメージ用フェンスの作成
@@ -529,6 +543,16 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex) {
         model.instanceAttributes.clear();
     }
 
+    {
+        graphicCommandBuffers.at(0)->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline2D.get());
+        for (const auto &drawInfo : uiImageDrawInfos) {
+            graphicCommandBuffers.at(0)->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline2DLayout.get(), 0, {drawInfo.data->descSet.get()}, {});
+            graphicCommandBuffers.at(0)->pushConstants(pipeline2DLayout.get(), vk::ShaderStageFlagBits::eVertex, 0, sizeof(Render2DPushConstantInfo), &drawInfo.push);
+            graphicCommandBuffers.at(0)->draw(6, 1, 0, 0);
+        }
+        uiImageDrawInfos.clear();
+    }
+
     graphicCommandBuffers.at(0)->endRendering();
 
     vk::ImageMemoryBarrier imageMemoryBarrier;
@@ -589,6 +613,19 @@ void VulkanApp::drawModel(const Model &model, glm::mat4x4 modelMatrix) {
     InstanceAttribute attr;
     attr.model = modelMatrix;
     model.pDat->instanceAttributes.push_back(attr);
+}
+
+pl::UIImage VulkanApp::loadUIImage(std::filesystem::path file_path) {
+    return pl::UIImage{uiimageDb->load_image(file_path)};
+}
+
+void VulkanApp::drawUIImage(const UIImage &image, int x, int y, int texX, int texY, int texW, int texH, float scaleX, float scaleY) {
+    Render2DPushConstantInfo push;
+    push.tl = {x * 2.0f / screenWidth - 1.0f, y * 2.0f / screenHeight - 1.0f};
+    push.sz = {2.0f * scaleX * texW / screenWidth, 2.0f * scaleY * texH / screenHeight};
+    push.texclip_tl = {texX / image.pDat->width, texY / image.pDat->height};
+    push.texclip_sz = {texW / image.pDat->width, texH / image.pDat->height};
+    uiImageDrawInfos.push_back({image.pDat, push});
 }
 
 } // namespace pl

@@ -11,6 +11,8 @@ add_library(pelican
     src/vulkan/model_db.cpp
     src/vulkan/app.cpp
     src/vulkan/pipelineBuilder.cpp
+    src/vulkan/pipeline2DBuilder.cpp
+    src/vulkan/image_db.cpp
 	src/audio.cpp
 	src/speaker.cpp
     src/physics.cpp 

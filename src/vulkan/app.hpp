@@ -5,6 +5,9 @@
 #include <pelican/renderer.hpp>
 #include "model_db.hpp"
 
+#include "pipeline2DBuilder.hpp"
+#include "image_db.hpp"
+
 namespace pl {
 
 class VulkanApp : public pl::Renderer {
@@ -41,6 +44,16 @@ class VulkanApp : public pl::Renderer {
         vk::UniquePipeline pipeline;
         vk::UniquePipelineLayout pipelineLayout;
         std::unique_ptr<PipelineBuilder> pipelineBuilder;
+        
+        std::optional<UIImageDataBase> uiimageDb;
+        vk::UniquePipeline pipeline2D;
+        vk::UniquePipelineLayout pipeline2DLayout;
+        std::unique_ptr<Pipeline2DBuilder> pipeline2DBuilder;
+        struct UIImageDrawInfo {
+            UIImageData* data;
+            Render2DPushConstantInfo push;
+        };
+        std::vector<UIImageDrawInfo> uiImageDrawInfos;
 
         VkSurfaceKHR c_surface;
         vk::UniqueSurfaceKHR surface;
@@ -94,6 +107,9 @@ class VulkanApp : public pl::Renderer {
         void setProjection(float horizontalAngle) override;
         pl::Model loadModel(std::filesystem::path file_path, uint32_t max_object_num) override;
         //void loadObject(std::filesystem::path file_path) override;
+
+        void drawUIImage(const UIImage &image, int x, int y, int texX, int texY, int texW, int texH, float scaleX, float scaleY);
+        pl::UIImage loadUIImage(std::filesystem::path file_path);
 };
 
 }

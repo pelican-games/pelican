@@ -4,6 +4,7 @@
 #include <vulkan/vulkan.hpp>
 #include "vulkan/app.hpp"
 #include <optional>
+#include <thread>
 #include <map>
 
 namespace pl {
@@ -50,6 +51,8 @@ namespace pl {
         }
 
         renderer = std::make_unique<VulkanApp>(window, Windowwidth, Windowheight);
+
+        base_time = std::chrono::system_clock::now();
     }
 
     // 毎フレーム呼ばれる
@@ -59,6 +62,23 @@ namespace pl {
         // }
 
         renderer->drawFrame();
+
+        {
+            const auto now_time = std::chrono::system_clock::now();
+            frame_count++;
+            auto sleep_time_millis = (frame_count * 1000.0f / 60.0f) - std::chrono::duration_cast<std::chrono::milliseconds>(now_time - base_time).count();
+            if(sleep_time_millis < 1) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                frame_count = 0;
+                base_time = now_time;
+            } else {
+                std::this_thread::sleep_for(std::chrono::milliseconds(int(sleep_time_millis)));
+                if(frame_count > 60) {
+                    frame_count = 0;
+                    base_time = now_time;
+                }
+            }
+        }
 
         // イベントポーリング
         glfwPollEvents();

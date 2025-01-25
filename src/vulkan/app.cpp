@@ -352,8 +352,12 @@ void VulkanApp::copyTexture(vk::CommandBuffer commandBuffer, pl::Material& mater
 
 void VulkanApp::transferTexture(vk::DeviceQueueCreateInfo queueCreateInfo){
     std::vector<uint8_t> textureData;
+    std::vector<vk::DescriptorSetLayoutBinding> descriptorSetLayoutBindings;
+    std::vector<vk::DescriptorPoolSize> descriptorPoolSizes;
+    uint32_t binding = 0;
 
     for(auto &material : modelDb.materials){
+
         if(material.baseColorTextureRaw.has_value()){
             textureData.insert(textureData.end(), material.baseColorTextureRaw->data.begin(), material.baseColorTextureRaw->data.end());
             material.baseColorTextureRaw->data.clear();
@@ -469,11 +473,25 @@ void VulkanApp::transferTexture(vk::DeviceQueueCreateInfo queueCreateInfo){
                 VK_FALSE);
             material.emissiveTextureSampler = device->createSamplerUnique(samplerCreateInfo);
         }
+
+        descriptorSetLayoutBindings.push_back(material.getDescriptorSetLayoutBinding(binding));
+        descriptorPoolSizes.push_back(material.getDescriptorPoolSize());
+        binding++;
     }
+
+    vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo({}, descriptorSetLayoutBindings.size(), descriptorSetLayoutBindings.data());
+    descriptorSetLayout = device->createDescriptorSetLayoutUnique(descriptorSetLayoutCreateInfo);
+
+    vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo({}, 1, descriptorPoolSizes.size(), descriptorPoolSizes.data());
+    descriptorPool = device->createDescriptorPoolUnique(descriptorPoolCreateInfo);
+
+    
 
     auto stagingBuffer = createBuffer({}, textureData.size(), vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible, vk::SharingMode::eExclusive);
     void *stagingBufferMem = device->mapMemory(stagingBuffer.second.get(), 0, textureData.size());
     std::memcpy(stagingBufferMem, textureData.data(), textureData.size());
+
+
 
     std::pair<std::vector<vk::UniqueCommandBuffer>, vk::UniqueCommandPool> commandBuffers = createCommandBuffers(vk::CommandPoolCreateFlagBits::eResetCommandBuffer, queueCreateInfo, 1);
     vk::CommandBufferBeginInfo beginInfo;

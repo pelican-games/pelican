@@ -84,6 +84,50 @@ struct Material {
     vk::UniqueImage emissiveTexture;
     vk::UniqueImageView emissiveTextureView;
     vk::UniqueSampler emissiveTextureSampler;
+
+    vk::DescriptorSetLayoutBinding getDescriptorSetLayoutBinding(uint32_t binding) {
+        uint32_t count = 0;
+        if(baseColorTextureRaw.has_value()){
+            count++;
+        }
+        if(metallicRoughnessTextureRaw.has_value()){
+            count++;
+        }
+        if(normalTextureRaw.has_value()){
+            count++;
+        }
+        if(occlusionTextureRaw.has_value()){
+            count++;
+        }
+        if(emissiveTextureRaw.has_value()){
+            count++;
+        }
+        return {
+            vk::DescriptorSetLayoutBinding(binding, vk::DescriptorType::eCombinedImageSampler, count, vk::ShaderStageFlagBits::eFragment)
+        };
+    }
+
+    vk::DescriptorPoolSize getDescriptorPoolSize() {
+        uint32_t count = 0;
+        if(baseColorTextureRaw.has_value()){
+            count++;
+        }
+        if(metallicRoughnessTextureRaw.has_value()){
+            count++;
+        }
+        if(normalTextureRaw.has_value()){
+            count++;
+        }
+        if(occlusionTextureRaw.has_value()){
+            count++;
+        }
+        if(emissiveTextureRaw.has_value()){
+            count++;
+        }
+        return {
+            vk::DescriptorType::eCombinedImageSampler, count
+        };
+    }
 };
 
 struct Primitive {

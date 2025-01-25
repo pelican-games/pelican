@@ -50,6 +50,11 @@ class VulkanApp : public pl::Renderer {
 
         vk::UniqueFence swapchainImgFence;
 
+        //デスクリプタセット
+        std::vector<vk::DescriptorSetLayoutBinding> descriptorSetLayoutBindings;
+        vk::UniqueDescriptorSetLayout descriptorSetLayout;
+        vk::UniqueDescriptorPool descriptorPool;
+
         //イメージ
         vk::UniqueImage image;
 
@@ -68,6 +73,7 @@ class VulkanApp : public pl::Renderer {
         
         //イメージの作成
         vk::UniqueImage createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage);
+        vk::UniqueImageView createImageView(vk::Image image, vk::Format format, vk::ImageAspectFlags aspectFlags);
         uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
         //シェーダーモジュールの作成

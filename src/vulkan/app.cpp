@@ -498,8 +498,10 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex) {
 
     graphicCommandBuffers.at(0)->pushConstants(pipelineLayout.get(), vk::ShaderStageFlagBits::eVertex, 0, sizeof(vpMatrix), &vpMatrix);
 
-    for (auto& model : modelDb.models) {
-        auto& [instanceBuf, instanceBufMem] = modelDb.instanceBuffers.at(model.modelIndex);
+    for (auto &model : modelDb.models) {
+        if (model.instanceAttributes.empty())
+            continue;
+        auto &[instanceBuf, instanceBufMem] = modelDb.instanceBuffers.at(model.modelIndex);
 
         const auto instanceBufSize = model.instanceAttributes.size() * sizeof(InstanceAttribute);
         const auto pInstanceBuf = device->mapMemory(instanceBufMem.get(), 0, instanceBufSize, {});

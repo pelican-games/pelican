@@ -304,6 +304,72 @@ std::vector<pl::Object> modelToObjects(const pl::ModelDataBase &modelDb) {
     return objects;
 }
 
+//コマンドバッファの作成
+
+std::Pair<std::vector<vk::UniqueCommandBuffer>, vk::UniqueCommandPool> VulkanApp::createCommandBuffers(vk::CommandPoolCreateFlagBits commandPoolFlag, vk::QueueCreateInfo queueCreateInfo, uint32_t commandBufferCount) {
+    
+    vk::CommandPoolCrateInfo(commandPoolFlag, queueCreateInfo.queueFamilyIndex);
+    vk::UniqueCommandPool commandPool = device->createCommandPoolUnique(commandPoolCreateInfo);
+
+    vk::CommandBufferAllocateInfo commandBufferAllocateInfo(commandPool.get(), vk::CommandBufferLevel::ePrimary, commandBufferCount);
+    std::vector<vk::UniqueCommandBuffer> commandBuffers = device->allocateCommandBuffersUnique(commandBufferAllocateInfo);
+
+    return std::make_pair(commandBuffers, commandPool);
+}
+
+vk::ImageMemoryBarrier VulkanApp::createImageMemoryBarrier(vk::Image image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout, vk::AccessFlags srcAccessMask, vk::AccessFlags dstAccessMask) {
+    vk::ImageMemoryBarrier imageMemoryBarrier(
+        srcAccessMask,
+        dstAccessMask,
+        oldLayout,
+        newLayout,
+        VK_QUEUE_FAMILY_IGNORED,
+        VK_QUEUE_FAMILY_IGNORED,
+        image,
+        vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
+    return imageMemoryBarrier;
+}
+
+//テクスチャの転送
+void VulkanApp::transferTexture(){
+    std::vector<uint8_t> textureData;
+
+    for(auto &material : modelDb.materials){
+        if(material.baseColorTextureRaw.has_value()){
+            textureData.insert(textureData.end(), material.baseColorTextureRaw->data.begin(), material.baseColorTextureRaw->data.end());
+            material.baseColorTextureRaw->data.clear();
+            material.baseColorTexture = createImage(material.baseColorTextureRaw->width, material.baseColorTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
+        }
+        if(material.metallicRoughnessTextureRaw.has_value()){
+            textureData.insert(textureData.end(), material.metallicRoughnessTextureRaw->data.begin(), material.metallicRoughnessTextureRaw->data.end());
+            material.metallicRoughnessTextureRaw->data.clear();
+            material.metallicRoughnessTexture = createImage(material.metallicRoughnessTextureRaw->width, material.metallicRoughnessTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
+        }
+        if(material.normalTextureRaw.has_value()){
+            textureData.insert(textureData.end(), material.normalTextureRaw->data.begin(), material.normalTextureRaw->data.end());
+            material.normalTextureRaw->data.clear();
+            material.normalTexture = createImage(material.normalTextureRaw->width, material.normalTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
+        }
+        if(material.occlusionTextureRaw.has_value()){
+            textureData.insert(textureData.end(), material.occlusionTextureRaw->data.begin(), material.occlusionTextureRaw->data.end());
+            material.occlusionTextureRaw->data.clear();
+            material.occlusionTexture = createImage(material.occlusionTextureRaw->width, material.occlusionTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
+        }
+        if(material.emissiveTextureRaw.has_value()){
+            textureData.insert(textureData.end(), material.emissiveTextureRaw->data.begin(), material.emissiveTextureRaw->data.end());
+            material.emissiveTextureRaw->data.clear();
+            material.emissiveTexture = createImage(material.emissiveTextureRaw->width, material.emissiveTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
+        }
+    }
+
+    auto stagingBuffer = createBuffer({}, textureData.size(), vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible, vk::SharingMode::eExclusive);
+    void *stagingBufferMem = device->mapMemory(stagingBuffer.second.get(), 0, textureData.size());
+    std::memcpy(stagingBufferMem, textureData.data(), textureData.size());
+    device->unmapMemory(stagingBuffer.second.get());
+}
+
+    
+
 // オブジェクトのダンプ
 void dumpMesh(const Mesh &mesh) {
     std::cout << "start dumpMesh" << std::endl;
@@ -408,12 +474,18 @@ void VulkanApp::createSwapchain() {
     }
 }
 
-std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory> VulkanApp::createBuffer(vk::BufferCreateFlags flags, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties) {
+std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory> VulkanApp::createBuffer(
+    vk::BufferCreateFlags flags, 
+    vk::DeviceSize size, 
+    vk::BufferUsageFlags usage, 
+    vk::MemoryPropertyFlags properties,
+    vk::SharingMode sharingMode) {
+
     vk::BufferCreateInfo bufferCreateInfo(
         flags,
         size,
         usage,
-        vk::SharingMode::eExclusive,
+        sharingMode,
         0,
         nullptr);
 

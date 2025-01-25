@@ -76,13 +76,17 @@ class VulkanApp : public pl::Renderer {
         //スワップチェーンの作成
         void createSwapchain();
 
-        std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory> createBuffer(vk::BufferCreateFlags flags, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
+        std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory> createBuffer(vk::BufferCreateFlags flags, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::SharingMode sharingMode = vk::SharingMode::eExclusive);
         void setBuffer();
 
-        
-
+        //コマンドバッファの作成
+        std::Pair<std::vector<vk::UniqueCommandBuffer>, vk::UniqueCommandPool> createCommandBuffers(vk::CommandPoolCreateFlagBits commandPoolFlag, vk::QueueCreateInfo queueCreateInfo, uint32_t commandBufferCount);
+        vk::ImageMemoryBarrier createImageMemoryBarrier(vk::Image image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout, vk::AccessFlags srcAccessMask, vk::AccessFlags dstAccessMask);
         //レンダリング
+        void transferTexture();
+        void copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height, vk::DeviceSize offset);
         void drawGBuffer(uint32_t objectIndex);  
+
 
     public:
         //レンダリング

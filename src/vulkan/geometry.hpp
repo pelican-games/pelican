@@ -36,7 +36,20 @@ struct Vertex {
 enum class FilterType {
     Nearest, Linear, Cubic,
 };
+
 struct TextureRaw {
+    vk::Filter toVkFilter(FilterType filter) {
+        switch (filter) {
+        case FilterType::Nearest:
+            return vk::Filter::eNearest;
+        case FilterType::Linear:
+            return vk::Filter::eLinear;
+        case FilterType::Cubic:
+            return vk::Filter::eCubicIMG;
+        default:
+            return vk::Filter::eLinear;
+        }
+    }
     FilterType magFilter, minFilter;
     int width, height;
     std::vector<uint8_t> data;

@@ -360,8 +360,8 @@ void VulkanApp::transferTexture(vk::DeviceQueueCreateInfo queueCreateInfo){
             material.baseColorTexture = createImage(material.baseColorTextureRaw->width, material.baseColorTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
             vk::SamplerCreateInfo samplerCreateInfo(
                 {},
-                material.baseColorTextureRaw->magFilter,
-                material.baseColorTextureRaw->minFilter,
+                material.baseColorTextureRaw->toVkFilter(material.baseColorTextureRaw->magFilter),
+                material.baseColorTextureRaw->toVkFilter(material.baseColorTextureRaw->minFilter),
                 vk::SamplerMipmapMode::eLinear,
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,
@@ -383,8 +383,8 @@ void VulkanApp::transferTexture(vk::DeviceQueueCreateInfo queueCreateInfo){
             material.metallicRoughnessTexture = createImage(material.metallicRoughnessTextureRaw->width, material.metallicRoughnessTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
             vk::SamplerCreateInfo samplerCreateInfo(
                 {},
-                material.metallicRoughnessTextureRaw->magFilter,
-                material.metallicRoughnessTextureRaw->minFilter,
+                material.metallicRoughnessTextureRaw->toVkFilter(material.metallicRoughnessTextureRaw->magFilter),
+                material.metallicRoughnessTextureRaw->toVkFilter(material.metallicRoughnessTextureRaw->minFilter),
                 vk::SamplerMipmapMode::eLinear,
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,
@@ -406,8 +406,8 @@ void VulkanApp::transferTexture(vk::DeviceQueueCreateInfo queueCreateInfo){
             material.normalTexture = createImage(material.normalTextureRaw->width, material.normalTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
             vk::SamplerCreateInfo samplerCreateInfo(
                 {},
-                material.normalTextureRaw->magFilter,
-                material.normalTextureRaw->minFilter,
+                material.normalTextureRaw->toVkFilter(material.normalTextureRaw->magFilter),
+                material.normalTextureRaw->toVkFilter(material.normalTextureRaw->minFilter),
                 vk::SamplerMipmapMode::eLinear,
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,
@@ -429,8 +429,8 @@ void VulkanApp::transferTexture(vk::DeviceQueueCreateInfo queueCreateInfo){
             material.occlusionTexture = createImage(material.occlusionTextureRaw->width, material.occlusionTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
             vk::SamplerCreateInfo samplerCreateInfo(
                 {},
-                material.occlusionTextureRaw->magFilter,
-                material.occlusionTextureRaw->minFilter,
+                material.occlusionTextureRaw->toVkFilter(material.occlusionTextureRaw->magFilter),
+                material.occlusionTextureRaw->toVkFilter(material.occlusionTextureRaw->minFilter),
                 vk::SamplerMipmapMode::eLinear,
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,
@@ -452,8 +452,8 @@ void VulkanApp::transferTexture(vk::DeviceQueueCreateInfo queueCreateInfo){
             material.emissiveTexture = createImage(material.emissiveTextureRaw->width, material.emissiveTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
             vk::SamplerCreateInfo samplerCreateInfo(
                 {},
-                material.emissiveTextureRaw->magFilter,
-                material.emissiveTextureRaw->minFilter,
+                material.emissiveTextureRaw->toVkFilter(material.emissiveTextureRaw->magFilter),
+                material.emissiveTextureRaw->toVkFilter(material.emissiveTextureRaw->minFilter),
                 vk::SamplerMipmapMode::eLinear,
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,

@@ -306,15 +306,15 @@ std::vector<pl::Object> modelToObjects(const pl::ModelDataBase &modelDb) {
 
 //コマンドバッファの作成
 
-std::Pair<std::vector<vk::UniqueCommandBuffer>, vk::UniqueCommandPool> VulkanApp::createCommandBuffers(vk::CommandPoolCreateFlagBits commandPoolFlag, vk::QueueCreateInfo queueCreateInfo, uint32_t commandBufferCount) {
+std::pair<std::vector<vk::UniqueCommandBuffer>, vk::UniqueCommandPool> VulkanApp::createCommandBuffers(vk::CommandPoolCreateFlagBits commandPoolFlag, vk::DeviceQueueCreateInfo queueCreateInfo, uint32_t commandBufferCount) {
     
-    vk::CommandPoolCrateInfo(commandPoolFlag, queueCreateInfo.queueFamilyIndex);
+    vk::CommandPoolCreateInfo commandPoolCreateInfo(commandPoolFlag, queueCreateInfo.queueFamilyIndex);
     vk::UniqueCommandPool commandPool = device->createCommandPoolUnique(commandPoolCreateInfo);
 
     vk::CommandBufferAllocateInfo commandBufferAllocateInfo(commandPool.get(), vk::CommandBufferLevel::ePrimary, commandBufferCount);
     std::vector<vk::UniqueCommandBuffer> commandBuffers = device->allocateCommandBuffersUnique(commandBufferAllocateInfo);
 
-    return std::make_pair(commandBuffers, commandPool);
+    return std::pair<std::vector<vk::UniqueCommandBuffer>, vk::UniqueCommandPool>(std::move(commandBuffers), std::move(commandPool));;
 }
 
 vk::ImageMemoryBarrier VulkanApp::createImageMemoryBarrier(vk::Image image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout, vk::AccessFlags srcAccessMask, vk::AccessFlags dstAccessMask) {
@@ -331,7 +331,26 @@ vk::ImageMemoryBarrier VulkanApp::createImageMemoryBarrier(vk::Image image, vk::
 }
 
 //テクスチャの転送
-void VulkanApp::transferTexture(){
+void VulkanApp::copyTexture(std::pair<std::vector<vk::UniqueCommandBuffer>, vk::UniqueCommandPool>& commandBuffer, pl::Material material, vk::UniqueImage image, vk::UniqueBuffer stagingBuffer, vk::DeviceSize offset) {
+    vk::ImageMemoryBarrier imageMemoryBarrier = createImageMemoryBarrier(image.get(), vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, {}, vk::AccessFlagBits::eTransferWrite);
+
+    commandBuffer.first[0]->pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTransfer, {}, {}, {}, imageMemoryBarrier);
+
+    vk::BufferImageCopy bufferImageCopy(
+        offset,
+        0,
+        0,
+        vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, 0, 0, 1),
+        vk::Offset3D(0, 0, 0),
+        vk::Extent3D(material.baseColorTextureRaw->width, material.baseColorTextureRaw->height, 1));
+    commandBuffer.first[0]->copyBufferToImage(stagingBuffer.get(), image.get(), vk::ImageLayout::eTransferDstOptimal, 1, &bufferImageCopy);
+    
+    vk::ImageMemoryBarrier imageMemoryBarrier2 = createImageMemoryBarrier(image.get(), vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal, vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead);
+    commandBuffer.first[0]->pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, {}, {}, {}, imageMemoryBarrier2);
+
+}
+
+void VulkanApp::transferTexture(vk::DeviceQueueCreateInfo queueCreateInfo){
     std::vector<uint8_t> textureData;
 
     for(auto &material : modelDb.materials){
@@ -365,7 +384,41 @@ void VulkanApp::transferTexture(){
     auto stagingBuffer = createBuffer({}, textureData.size(), vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible, vk::SharingMode::eExclusive);
     void *stagingBufferMem = device->mapMemory(stagingBuffer.second.get(), 0, textureData.size());
     std::memcpy(stagingBufferMem, textureData.data(), textureData.size());
-    device->unmapMemory(stagingBuffer.second.get());
+
+    std::pair<std::vector<vk::UniqueCommandBuffer>, vk::UniqueCommandPool> commandBuffers = createCommandBuffers(vk::CommandPoolCreateFlagBits::eResetCommandBuffer, queueCreateInfo, 1);
+    vk::CommandBufferBeginInfo beginInfo;
+    beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
+    commandBuffers.first[0]->begin(beginInfo);
+
+    vk::DeviceSize offset = 0;
+    for(auto &material : modelDb.materials){
+        if(material.baseColorTextureRaw.has_value()){
+            copyTexture(commandBuffers, material, material.baseColorTexture, stagingBuffer.first, offset);
+            offset += sizeof(material.baseColorTextureRaw->data);
+        }
+        if(material.metallicRoughnessTextureRaw.has_value()){
+            copyTexture(commandBuffers, material, material.metallicRoughnessTexture, stagingBuffer.first, offset);
+            offset += sizeof(material.metallicRoughnessTextureRaw->data);
+        }
+        if(material.normalTextureRaw.has_value()){
+            copyTexture(commandBuffers, material, material.normalTexture, stagingBuffer.first, offset);
+            offset += sizeof(material.normalTextureRaw->data);
+        }
+        if(material.occlusionTextureRaw.has_value()){
+            copyTexture(commandBuffers, material, material.occlusionTexture, stagingBuffer.first, offset);
+            offset += sizeof(material.occlusionTextureRaw->data);
+        }
+        if(material.emissiveTextureRaw.has_value()){
+            copyTexture(commandBuffers, material, material.emissiveTexture, stagingBuffer.first, offset);
+            offset += sizeof(material.emissiveTextureRaw->data);
+        }
+    }
+    commandBuffers.first[0]->end();
+
+    vk::CommandBuffer submitCmdBuf[1] = {commandBuffers.first[0].get()};
+    vk::SubmitInfo submitInfo(0, nullptr, nullptr, 1, submitCmdBuf, 0, nullptr);
+    graphicsQueues[0].submit(submitInfo, nullptr);
+    graphicsQueues[0].waitIdle();
 }
 
     

@@ -17,7 +17,14 @@ class Cursor {
         int x, y;
     };
     void setPos(Point point);
-    Point getPos();
+    Point getPos() const;
+
+    bool left_down() const;
+    bool left_up() const;
+    bool left_pressed() const;
+    bool right_down() const;
+    bool right_up() const;
+    bool right_pressed() const;
 };
 
 } // namespace pl

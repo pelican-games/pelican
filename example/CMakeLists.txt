@@ -21,3 +21,9 @@ add_executable(example_key_input
 )
 target_link_libraries(example_key_input PRIVATE pelican)
 set_target_properties(example_key_input PROPERTIES CXX_STANDARD 20)
+
+add_executable(example_cursor_input
+    cursor_input/main.cpp
+)
+target_link_libraries(example_cursor_input PRIVATE pelican)
+set_target_properties(example_cursor_input PROPERTIES CXX_STANDARD 20)

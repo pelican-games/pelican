@@ -19,7 +19,10 @@ layout(push_constant) uniform PushConstant {
     mat4 proj;
 } push;
 
+layout(location = 0) out vec2 uv;
+
 void main() {
     mat4 instanceMatrix = mat4(inInstanceMatrix0, inInstanceMatrix1, inInstanceMatrix2, inInstanceMatrix3);
     gl_Position = push.proj * push.view * instanceMatrix * vec4(inPos, 1.0);
+    uv = inUV;
 }

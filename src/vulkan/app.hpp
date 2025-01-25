@@ -89,7 +89,7 @@ class VulkanApp : public pl::Renderer {
         void setBuffer();
 
         //コマンドバッファの作成
-        std::pair<std::vector<vk::UniqueCommandBuffer>, vk::UniqueCommandPool> createCommandBuffers(vk::CommandPoolCreateFlagBits commandPoolFlag, vk::DeviceQueueCreateInfo queueCreateInfo, uint32_t commandBufferCount);
+        std::pair<vk::UniqueCommandPool, std::vector<vk::UniqueCommandBuffer>> createCommandBuffers(vk::CommandPoolCreateFlagBits commandPoolFlag, vk::DeviceQueueCreateInfo queueCreateInfo, uint32_t commandBufferCount);
         vk::ImageMemoryBarrier createImageMemoryBarrier(vk::Image image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout, vk::AccessFlags srcAccessMask, vk::AccessFlags dstAccessMask);
         
         //レンダリング用関数

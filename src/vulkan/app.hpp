@@ -83,8 +83,8 @@ class VulkanApp : public pl::Renderer {
         std::pair<std::vector<vk::UniqueCommandBuffer>, vk::UniqueCommandPool> createCommandBuffers(vk::CommandPoolCreateFlagBits commandPoolFlag, vk::DeviceQueueCreateInfo queueCreateInfo, uint32_t commandBufferCount);
         vk::ImageMemoryBarrier createImageMemoryBarrier(vk::Image image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout, vk::AccessFlags srcAccessMask, vk::AccessFlags dstAccessMask);
         
-        //レンダリング
-        void copyTexture(std::pair<std::vector<vk::UniqueCommandBuffer>, vk::UniqueCommandPool>& commandBuffer, pl::Material material, vk::UniqueImage image, vk::UniqueBuffer stagingBuffer, vk::DeviceSize offset);
+        //レンダリング用関数
+        void copyTexture(vk::CommandBuffer commandBuffer, pl::Material& material, vk::Image image, vk::Buffer stagingBuffer, vk::DeviceSize offset);
         void transferTexture(vk::DeviceQueueCreateInfo queueCreateInfo);
         void copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height, vk::DeviceSize offset);
         void drawGBuffer(uint32_t objectIndex);  

@@ -358,27 +358,116 @@ void VulkanApp::transferTexture(vk::DeviceQueueCreateInfo queueCreateInfo){
             textureData.insert(textureData.end(), material.baseColorTextureRaw->data.begin(), material.baseColorTextureRaw->data.end());
             material.baseColorTextureRaw->data.clear();
             material.baseColorTexture = createImage(material.baseColorTextureRaw->width, material.baseColorTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
-            
+            vk::SamplerCreateInfo samplerCreateInfo(
+                {},
+                material.baseColorTextureRaw->magFilter,
+                material.baseColorTextureRaw->minFilter,
+                vk::SamplerMipmapMode::eLinear,
+                vk::SamplerAddressMode::eRepeat,
+                vk::SamplerAddressMode::eRepeat,
+                vk::SamplerAddressMode::eRepeat,
+                0.0f,
+                VK_FALSE,
+                16,
+                VK_FALSE,
+                vk::CompareOp::eAlways,
+                0.0f,
+                0.0f,
+                vk::BorderColor::eFloatOpaqueBlack,
+                VK_FALSE);
+            material.baseColorTextureSampler = device->createSamplerUnique(samplerCreateInfo);
         }
         if(material.metallicRoughnessTextureRaw.has_value()){
             textureData.insert(textureData.end(), material.metallicRoughnessTextureRaw->data.begin(), material.metallicRoughnessTextureRaw->data.end());
             material.metallicRoughnessTextureRaw->data.clear();
             material.metallicRoughnessTexture = createImage(material.metallicRoughnessTextureRaw->width, material.metallicRoughnessTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
+            vk::SamplerCreateInfo samplerCreateInfo(
+                {},
+                material.metallicRoughnessTextureRaw->magFilter,
+                material.metallicRoughnessTextureRaw->minFilter,
+                vk::SamplerMipmapMode::eLinear,
+                vk::SamplerAddressMode::eRepeat,
+                vk::SamplerAddressMode::eRepeat,
+                vk::SamplerAddressMode::eRepeat,
+                0.0f,
+                VK_FALSE,
+                16,
+                VK_FALSE,
+                vk::CompareOp::eAlways,
+                0.0f,
+                0.0f,
+                vk::BorderColor::eFloatOpaqueBlack,
+                VK_FALSE);
+            material.metallicRoughnessTextureSampler = device->createSamplerUnique(samplerCreateInfo);
         }
         if(material.normalTextureRaw.has_value()){
             textureData.insert(textureData.end(), material.normalTextureRaw->data.begin(), material.normalTextureRaw->data.end());
             material.normalTextureRaw->data.clear();
             material.normalTexture = createImage(material.normalTextureRaw->width, material.normalTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
+            vk::SamplerCreateInfo samplerCreateInfo(
+                {},
+                material.normalTextureRaw->magFilter,
+                material.normalTextureRaw->minFilter,
+                vk::SamplerMipmapMode::eLinear,
+                vk::SamplerAddressMode::eRepeat,
+                vk::SamplerAddressMode::eRepeat,
+                vk::SamplerAddressMode::eRepeat,
+                0.0f,
+                VK_FALSE,
+                16,
+                VK_FALSE,
+                vk::CompareOp::eAlways,
+                0.0f,
+                0.0f,
+                vk::BorderColor::eFloatOpaqueBlack,
+                VK_FALSE);
+            material.normalTextureSampler = device->createSamplerUnique(samplerCreateInfo);
         }
         if(material.occlusionTextureRaw.has_value()){
             textureData.insert(textureData.end(), material.occlusionTextureRaw->data.begin(), material.occlusionTextureRaw->data.end());
             material.occlusionTextureRaw->data.clear();
             material.occlusionTexture = createImage(material.occlusionTextureRaw->width, material.occlusionTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
+            vk::SamplerCreateInfo samplerCreateInfo(
+                {},
+                material.occlusionTextureRaw->magFilter,
+                material.occlusionTextureRaw->minFilter,
+                vk::SamplerMipmapMode::eLinear,
+                vk::SamplerAddressMode::eRepeat,
+                vk::SamplerAddressMode::eRepeat,
+                vk::SamplerAddressMode::eRepeat,
+                0.0f,
+                VK_FALSE,
+                16,
+                VK_FALSE,
+                vk::CompareOp::eAlways,
+                0.0f,
+                0.0f,
+                vk::BorderColor::eFloatOpaqueBlack,
+                VK_FALSE);
+            material.occlusionTextureSampler = device->createSamplerUnique(samplerCreateInfo);
         }
         if(material.emissiveTextureRaw.has_value()){
             textureData.insert(textureData.end(), material.emissiveTextureRaw->data.begin(), material.emissiveTextureRaw->data.end());
             material.emissiveTextureRaw->data.clear();
             material.emissiveTexture = createImage(material.emissiveTextureRaw->width, material.emissiveTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
+            vk::SamplerCreateInfo samplerCreateInfo(
+                {},
+                material.emissiveTextureRaw->magFilter,
+                material.emissiveTextureRaw->minFilter,
+                vk::SamplerMipmapMode::eLinear,
+                vk::SamplerAddressMode::eRepeat,
+                vk::SamplerAddressMode::eRepeat,
+                vk::SamplerAddressMode::eRepeat,
+                0.0f,
+                VK_FALSE,
+                16,
+                VK_FALSE,
+                vk::CompareOp::eAlways,
+                0.0f,
+                0.0f,
+                vk::BorderColor::eFloatOpaqueBlack,
+                VK_FALSE);
+            material.emissiveTextureSampler = device->createSamplerUnique(samplerCreateInfo);
         }
     }
 

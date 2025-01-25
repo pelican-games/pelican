@@ -52,6 +52,7 @@ struct TextureRaw {
     }
     FilterType magFilter, minFilter;
     int width, height;
+    int bits;
     std::vector<uint8_t> data;
 };
 

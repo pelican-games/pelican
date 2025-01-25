@@ -526,7 +526,7 @@ void VulkanApp::transferTexture(){
     vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo({}, descriptorSetLayoutBindings.size(), descriptorSetLayoutBindings.data());
     descriptorSetLayout = device->createDescriptorSetLayoutUnique(descriptorSetLayoutCreateInfo);
 
-    vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo({}, 1, descriptorPoolSizes.size(), descriptorPoolSizes.data());
+    vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 1, descriptorPoolSizes.size(), descriptorPoolSizes.data());
     descriptorPool = device->createDescriptorPoolUnique(descriptorPoolCreateInfo);
 
     vk::DescriptorSetAllocateInfo descriptorSetAllocateInfo(descriptorPool.get(), 1, &descriptorSetLayout.get());

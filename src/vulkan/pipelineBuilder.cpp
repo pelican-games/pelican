@@ -16,7 +16,7 @@ void PipelineBuilder::clear() {
     pipelineLayout = vk::UniquePipelineLayout();
 }
 
-vk::UniquePipeline PipelineBuilder::buildPipeline(vk::Device device, vk::UniquePipelineLayout& pipelineLayout, std::vector<vk::PipelineShaderStageCreateInfo> shaderStagesInput, uint32_t WIDTH, uint32_t HEIGHT) {
+vk::UniquePipeline PipelineBuilder::buildPipeline(vk::Device device, vk::UniquePipelineLayout& pipelineLayout,vk::DescriptorSetLayout descriptorSetLayout , std::vector<vk::PipelineShaderStageCreateInfo> shaderStagesInput, uint32_t WIDTH, uint32_t HEIGHT) {
 
     // 入力シェーダーステージを設定
     shaderStages = shaderStagesInput;
@@ -140,8 +140,8 @@ vk::UniquePipeline PipelineBuilder::buildPipeline(vk::Device device, vk::UniqueP
     
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo(
         {},      // flags
-        0,       // setLayoutCount
-        nullptr, // pSetLayouts
+        1,
+        &descriptorSetLayout,
         pushConstantRanges.size(),       // pushConstantRangeCount
         pushConstantRanges.data()        // pPushConstantRanges
     );

@@ -57,7 +57,7 @@ VulkanApp::VulkanApp(GLFWwindow *window, unsigned int screenWidth, unsigned int 
     // デバイスの初期化
     std::vector<float> graphicQueuePriorities;
     std::vector<float> computeQueuePriorities;
-    std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos = findQueues(graphicQueuePriorities, computeQueuePriorities);
+    queueCreateInfos = findQueues(graphicQueuePriorities, computeQueuePriorities);
 
     vk::DeviceCreateInfo deviceCreateInfo(
         {},
@@ -96,25 +96,7 @@ VulkanApp::VulkanApp(GLFWwindow *window, unsigned int screenWidth, unsigned int 
     // computeCommandBuffers = device->allocateCommandBuffersUnique(computeCmdBufAllocInfo);
 
     // イメージの作成
-    image = createImage(screenWidth, screenHeight, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled);
-
-    // シェーダーモジュールの作成
-    vk::UniqueShaderModule vertShaderModule = createShaderModule("src/shaders/shader.vert.spv");
-    vk::UniqueShaderModule fragShaderModule = createShaderModule("src/shaders/shader.frag.spv");
-
-    // パイプラインの作成
-    std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = {
-        vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eVertex, vertShaderModule.get(), "main"),
-        vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eFragment, fragShaderModule.get(), "main")};
-
-    pipelineBuilder = std::make_unique<PipelineBuilder>();
-    pipeline = pipelineBuilder->buildPipeline(device.get(), pipelineLayout, shaderStages, screenWidth, screenHeight);
-
-    // スワップチェーンの作成
-    createSwapchain();
-    // スワップチェーンイメージ用フェンスの作成
-    vk::FenceCreateInfo fenceCreateInfo{};
-    swapchainImgFence = device->createFenceUnique(fenceCreateInfo);
+    //image = createImage(screenWidth, screenHeight, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled);
 }
 
 VulkanApp::~VulkanApp() {
@@ -149,6 +131,26 @@ pl::Model VulkanApp::loadModel(std::filesystem::path file_path, uint32_t max_obj
     model->instanceAttributes.resize(max_object_num);
     model->modelIndex = modelDb.instanceBuffers.size();
     modelDb.instanceBuffers.emplace_back(createBuffer({}, model->instanceAttributes.size() * sizeof(InstanceAttribute), vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eHostVisible));
+    transferTexture();
+
+    // シェーダーモジュールの作成
+    vk::UniqueShaderModule vertShaderModule = createShaderModule("src/shaders/shader.vert.spv");
+    vk::UniqueShaderModule fragShaderModule = createShaderModule("src/shaders/shader.frag.spv");
+
+    // パイプラインの作成
+    std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = {
+        vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eVertex, vertShaderModule.get(), "main"),
+        vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eFragment, fragShaderModule.get(), "main")};
+
+    pipelineBuilder = std::make_unique<PipelineBuilder>();
+
+    pipeline = pipelineBuilder->buildPipeline(device.get(), pipelineLayout, descriptorSetLayout.get(), shaderStages, screenWidth, screenHeight);
+
+    // スワップチェーンの作成
+    createSwapchain();
+    // スワップチェーンイメージ用フェンスの作成
+    vk::FenceCreateInfo fenceCreateInfo{};
+    swapchainImgFence = device->createFenceUnique(fenceCreateInfo);
 
     return Model{model};
 }
@@ -257,7 +259,7 @@ std::vector<vk::DeviceQueueCreateInfo> VulkanApp::findQueues(std::vector<float> 
 }
 
 // イメージの作成
-vk::UniqueImage VulkanApp::createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage) {
+std::pair <vk::UniqueImage , vk::UniqueDeviceMemory> VulkanApp::createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage) {
     vk::ImageCreateInfo imageCreateInfo(
         {},
         vk::ImageType::e2D,
@@ -283,9 +285,20 @@ vk::UniqueImage VulkanApp::createImage(uint32_t width, uint32_t height, vk::Form
     vk::UniqueDeviceMemory imageMemory = device->allocateMemoryUnique(allocInfo);
     device->bindImageMemory(image.get(), imageMemory.get(), 0);
 
-    return image;
+    return std::make_pair(std::move(image), std::move(imageMemory));
 }
 
+vk::UniqueImageView VulkanApp::createImageView(vk::Image image, vk::Format format, vk::ImageAspectFlags aspectFlags) {
+    vk::ImageViewCreateInfo viewCreateInfo(
+        {},
+        image,
+        vk::ImageViewType::e2D,
+        format,
+        vk::ComponentMapping(),
+        vk::ImageSubresourceRange(aspectFlags, 0, 1, 0, 1));
+
+    return device->createImageViewUnique(viewCreateInfo);
+}
 // モデルデータベースからオブジェクトを生成
 std::vector<pl::Object> modelToObjects(const pl::ModelDataBase &modelDb) {
     std::vector<pl::Object> objects;
@@ -350,7 +363,7 @@ void VulkanApp::copyTexture(vk::CommandBuffer commandBuffer, pl::Material& mater
 
 }
 
-void VulkanApp::transferTexture(vk::DeviceQueueCreateInfo queueCreateInfo){
+void VulkanApp::transferTexture(){
     std::vector<uint8_t> textureData;
     std::vector<vk::DescriptorSetLayoutBinding> descriptorSetLayoutBindings;
     std::vector<vk::DescriptorPoolSize> descriptorPoolSizes;
@@ -362,6 +375,7 @@ void VulkanApp::transferTexture(vk::DeviceQueueCreateInfo queueCreateInfo){
             textureData.insert(textureData.end(), material.baseColorTextureRaw->data.begin(), material.baseColorTextureRaw->data.end());
             material.baseColorTextureRaw->data.clear();
             material.baseColorTexture = createImage(material.baseColorTextureRaw->width, material.baseColorTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
+            material.baseColorTextureView = createImageView(material.baseColorTexture.first.get(), vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor);
             vk::SamplerCreateInfo samplerCreateInfo(
                 {},
                 material.baseColorTextureRaw->toVkFilter(material.baseColorTextureRaw->magFilter),
@@ -385,6 +399,7 @@ void VulkanApp::transferTexture(vk::DeviceQueueCreateInfo queueCreateInfo){
             textureData.insert(textureData.end(), material.metallicRoughnessTextureRaw->data.begin(), material.metallicRoughnessTextureRaw->data.end());
             material.metallicRoughnessTextureRaw->data.clear();
             material.metallicRoughnessTexture = createImage(material.metallicRoughnessTextureRaw->width, material.metallicRoughnessTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
+            material.metallicRoughnessTextureView = createImageView(material.metallicRoughnessTexture.first.get(), vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor);
             vk::SamplerCreateInfo samplerCreateInfo(
                 {},
                 material.metallicRoughnessTextureRaw->toVkFilter(material.metallicRoughnessTextureRaw->magFilter),
@@ -408,6 +423,7 @@ void VulkanApp::transferTexture(vk::DeviceQueueCreateInfo queueCreateInfo){
             textureData.insert(textureData.end(), material.normalTextureRaw->data.begin(), material.normalTextureRaw->data.end());
             material.normalTextureRaw->data.clear();
             material.normalTexture = createImage(material.normalTextureRaw->width, material.normalTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
+            material.normalTextureView = createImageView(material.normalTexture.first.get(), vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor);
             vk::SamplerCreateInfo samplerCreateInfo(
                 {},
                 material.normalTextureRaw->toVkFilter(material.normalTextureRaw->magFilter),
@@ -431,6 +447,7 @@ void VulkanApp::transferTexture(vk::DeviceQueueCreateInfo queueCreateInfo){
             textureData.insert(textureData.end(), material.occlusionTextureRaw->data.begin(), material.occlusionTextureRaw->data.end());
             material.occlusionTextureRaw->data.clear();
             material.occlusionTexture = createImage(material.occlusionTextureRaw->width, material.occlusionTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
+            material.occlusionTextureView = createImageView(material.occlusionTexture.first.get(), vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor);
             vk::SamplerCreateInfo samplerCreateInfo(
                 {},
                 material.occlusionTextureRaw->toVkFilter(material.occlusionTextureRaw->magFilter),
@@ -454,6 +471,7 @@ void VulkanApp::transferTexture(vk::DeviceQueueCreateInfo queueCreateInfo){
             textureData.insert(textureData.end(), material.emissiveTextureRaw->data.begin(), material.emissiveTextureRaw->data.end());
             material.emissiveTextureRaw->data.clear();
             material.emissiveTexture = createImage(material.emissiveTextureRaw->width, material.emissiveTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
+            material.emissiveTextureView = createImageView(material.emissiveTexture.first.get(), vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor);
             vk::SamplerCreateInfo samplerCreateInfo(
                 {},
                 material.emissiveTextureRaw->toVkFilter(material.emissiveTextureRaw->magFilter),
@@ -478,22 +496,34 @@ void VulkanApp::transferTexture(vk::DeviceQueueCreateInfo queueCreateInfo){
         descriptorPoolSizes.push_back(material.getDescriptorPoolSize());
         binding++;
     }
-
+    //デスクリプタセットの作成
     vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo({}, descriptorSetLayoutBindings.size(), descriptorSetLayoutBindings.data());
     descriptorSetLayout = device->createDescriptorSetLayoutUnique(descriptorSetLayoutCreateInfo);
 
     vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo({}, 1, descriptorPoolSizes.size(), descriptorPoolSizes.data());
     descriptorPool = device->createDescriptorPoolUnique(descriptorPoolCreateInfo);
 
-    
+    vk::DescriptorSetAllocateInfo descriptorSetAllocateInfo(descriptorPool.get(), 1, &descriptorSetLayout.get());
+    descriptorSets = device->allocateDescriptorSetsUnique(descriptorSetAllocateInfo);
+/*
+    vk::writeDescriptorSet writeDescriptorSet(
+        descriptorSets[0].get(),
+        0,
+        0,
+        1,
+        vk::DescriptorType::eCombinedImageSampler,
+        &material.baseColorTextureSampler.get(),
+        nullptr,
+        nullptr);
+*/
 
+    std::cout << "Texture Data Size: " << textureData.size() << std::endl;
     auto stagingBuffer = createBuffer({}, textureData.size(), vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible, vk::SharingMode::eExclusive);
     void *stagingBufferMem = device->mapMemory(stagingBuffer.second.get(), 0, textureData.size());
     std::memcpy(stagingBufferMem, textureData.data(), textureData.size());
 
 
-
-    std::pair<std::vector<vk::UniqueCommandBuffer>, vk::UniqueCommandPool> commandBuffers = createCommandBuffers(vk::CommandPoolCreateFlagBits::eResetCommandBuffer, queueCreateInfo, 1);
+    std::pair<std::vector<vk::UniqueCommandBuffer>, vk::UniqueCommandPool> commandBuffers = createCommandBuffers(vk::CommandPoolCreateFlagBits::eResetCommandBuffer, queueCreateInfos[0], 1);
     vk::CommandBufferBeginInfo beginInfo;
     beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
     commandBuffers.first[0]->begin(beginInfo);
@@ -501,26 +531,29 @@ void VulkanApp::transferTexture(vk::DeviceQueueCreateInfo queueCreateInfo){
     vk::DeviceSize offset = 0;
     for(auto &material : modelDb.materials){
         if(material.baseColorTextureRaw.has_value()){
-            copyTexture(commandBuffers.first[0].get(), material, material.baseColorTexture.get(), stagingBuffer.first.get(), offset);
+            copyTexture(commandBuffers.first[0].get(), material, material.baseColorTexture.first.get(), stagingBuffer.first.get(), offset);
             offset += sizeof(material.baseColorTextureRaw->data);
         }
         if(material.metallicRoughnessTextureRaw.has_value()){
-            copyTexture(commandBuffers.first[0].get(), material, material.metallicRoughnessTexture.get(), stagingBuffer.first.get(), offset);
+            copyTexture(commandBuffers.first[0].get(), material, material.metallicRoughnessTexture.first.get(), stagingBuffer.first.get(), offset);
             offset += sizeof(material.metallicRoughnessTextureRaw->data);
         }
         if(material.normalTextureRaw.has_value()){
-            copyTexture(commandBuffers.first[0].get(), material, material.normalTexture.get(), stagingBuffer.first.get(), offset);
+            copyTexture(commandBuffers.first[0].get(), material, material.normalTexture.first.get(), stagingBuffer.first.get(), offset);
             offset += sizeof(material.normalTextureRaw->data);
         }
         if(material.occlusionTextureRaw.has_value()){
-            copyTexture(commandBuffers.first[0].get(), material, material.occlusionTexture.get(), stagingBuffer.first.get(), offset);
+            copyTexture(commandBuffers.first[0].get(), material, material.occlusionTexture.first.get(), stagingBuffer.first.get(), offset);
             offset += sizeof(material.occlusionTextureRaw->data);
         }
         if(material.emissiveTextureRaw.has_value()){
-            copyTexture(commandBuffers.first[0].get(), material, material.emissiveTexture.get(), stagingBuffer.first.get(), offset);
+            copyTexture(commandBuffers.first[0].get(), material, material.emissiveTexture.first.get(), stagingBuffer.first.get(), offset);
             offset += sizeof(material.emissiveTextureRaw->data);
         }
     }
+    
+    //commandBuffrs.first[0]->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout.get(), 0, descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+    
     commandBuffers.first[0]->end();
 
     vk::CommandBuffer submitCmdBuf[1] = {commandBuffers.first[0].get()};

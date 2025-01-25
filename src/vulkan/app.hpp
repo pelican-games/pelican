@@ -25,6 +25,8 @@ class VulkanApp : public pl::Renderer {
         vk::UniqueInstance instance;
         vk::PhysicalDevice physicalDevice;
         vk::UniqueDevice device;
+
+        std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
         std::vector<vk::Queue> graphicsQueues;
         // std::vector<vk::Queue> computeQueues;
 
@@ -54,9 +56,10 @@ class VulkanApp : public pl::Renderer {
         std::vector<vk::DescriptorSetLayoutBinding> descriptorSetLayoutBindings;
         vk::UniqueDescriptorSetLayout descriptorSetLayout;
         vk::UniqueDescriptorPool descriptorPool;
+        std::vector<vk::UniqueDescriptorSet> descriptorSets;
 
         //イメージ
-        vk::UniqueImage image;
+        std::vector<std::pair<vk::UniqueImage, vk::UniqueDeviceMemory>> image;
 
         //std::vector<pl::Object> scene;
 
@@ -72,7 +75,7 @@ class VulkanApp : public pl::Renderer {
         uint32_t checkPresentationSupport(vk::SurfaceKHR surface);
         
         //イメージの作成
-        vk::UniqueImage createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage);
+        std::pair <vk::UniqueImage , vk::UniqueDeviceMemory> createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage);
         vk::UniqueImageView createImageView(vk::Image image, vk::Format format, vk::ImageAspectFlags aspectFlags);
         uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
@@ -91,7 +94,7 @@ class VulkanApp : public pl::Renderer {
         
         //レンダリング用関数
         void copyTexture(vk::CommandBuffer commandBuffer, pl::Material& material, vk::Image image, vk::Buffer stagingBuffer, vk::DeviceSize offset);
-        void transferTexture(vk::DeviceQueueCreateInfo queueCreateInfo);
+        void transferTexture();
         void copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height, vk::DeviceSize offset);
         void drawGBuffer(uint32_t objectIndex);  
 

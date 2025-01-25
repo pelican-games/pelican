@@ -61,27 +61,27 @@ struct Material {
     float roughnessFactor;
 
     std::optional<TextureRaw> baseColorTextureRaw;
-    vk::UniqueImage baseColorTexture;
+    std::pair<vk::UniqueImage, vk::UniqueDeviceMemory> baseColorTexture;
     vk::UniqueImageView baseColorTextureView;
     vk::UniqueSampler baseColorTextureSampler;
 
     std::optional<TextureRaw> metallicRoughnessTextureRaw;
-    vk::UniqueImage metallicRoughnessTexture;
+    std::pair<vk::UniqueImage, vk::UniqueDeviceMemory> metallicRoughnessTexture;
     vk::UniqueImageView metallicRoughnessTextureView;
     vk::UniqueSampler metallicRoughnessTextureSampler;
 
     std::optional<TextureRaw> normalTextureRaw;
-    vk::UniqueImage normalTexture;
+    std::pair<vk::UniqueImage, vk::UniqueDeviceMemory> normalTexture;
     vk::UniqueImageView normalTextureView;
     vk::UniqueSampler normalTextureSampler;
 
     std::optional<TextureRaw> occlusionTextureRaw;
-    vk::UniqueImage occlusionTexture;
+    std::pair<vk::UniqueImage, vk::UniqueDeviceMemory> occlusionTexture;
     vk::UniqueImageView occlusionTextureView;
     vk::UniqueSampler occlusionTextureSampler;
 
     std::optional<TextureRaw> emissiveTextureRaw;
-    vk::UniqueImage emissiveTexture;
+    std::pair<vk::UniqueImage, vk::UniqueDeviceMemory> emissiveTexture;
     vk::UniqueImageView emissiveTextureView;
     vk::UniqueSampler emissiveTextureSampler;
 

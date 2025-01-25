@@ -10,7 +10,7 @@ struct Render2DPushConstantInfo {
 class Pipeline2DBuilder {
 
   public:
-    vk::UniquePipeline buildPipeline(vk::Device, vk::UniquePipelineLayout &pipelinelayout, std::vector<vk::PipelineShaderStageCreateInfo> shaderStages, uint32_t WIDTH, uint32_t HEIGHT);
+    vk::UniquePipeline buildPipeline(vk::Device, vk::UniquePipelineLayout &pipelinelayout, std::initializer_list<vk::DescriptorSetLayout> descLayouts, std::vector<vk::PipelineShaderStageCreateInfo> shaderStages, uint32_t WIDTH, uint32_t HEIGHT);
 };
 
 } // namespace pl

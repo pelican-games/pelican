@@ -3,7 +3,7 @@
 
 namespace pl {
 
-vk::UniquePipeline Pipeline2DBuilder::buildPipeline(vk::Device device, vk::UniquePipelineLayout &pipelineLayout, std::vector<vk::PipelineShaderStageCreateInfo> shaderStagesInput, uint32_t WIDTH, uint32_t HEIGHT) {
+vk::UniquePipeline Pipeline2DBuilder::buildPipeline(vk::Device device, vk::UniquePipelineLayout &pipelineLayout, std::initializer_list<vk::DescriptorSetLayout> descLayouts, std::vector<vk::PipelineShaderStageCreateInfo> shaderStagesInput, uint32_t WIDTH, uint32_t HEIGHT) {
     std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo;
     vk::PipelineInputAssemblyStateCreateInfo inputAssembly;
@@ -112,8 +112,8 @@ vk::UniquePipeline Pipeline2DBuilder::buildPipeline(vk::Device device, vk::Uniqu
 
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo(
         {},                        // flags
-        0,                         // setLayoutCount
-        nullptr,                   // pSetLayouts
+        descLayouts.size(),        // setLayoutCount
+        descLayouts.begin(),       // pSetLayouts
         pushConstantRanges.size(), // pushConstantRangeCount
         pushConstantRanges.data()  // pPushConstantRanges
     );

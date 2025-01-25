@@ -10,6 +10,7 @@ struct UIImageData {
     vk::UniqueImageView imageView;
     vk::UniqueSampler sampler;
     vk::UniqueDescriptorSet descSet;
+    int width, height;
 };
 
 struct UIImageDataBase {

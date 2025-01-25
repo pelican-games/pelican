@@ -290,6 +290,8 @@ pl::UIImageData *UIImageDataBase::load_image(std::filesystem::path file_path) {
     updateDescSetAsTextureImage(device, descSets.back().get(), imgView.get(), sampler.get());
 
     UIImageData data;
+    data.width = w;
+    data.height = h;
     data.mem = std::move(img.mem);
     data.image = std::move(img.img);
     data.imageView = std::move(imgView);

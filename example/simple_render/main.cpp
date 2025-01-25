@@ -6,9 +6,7 @@ int main() {
 
         pl::Renderer& renderer = sys.getDefaultRenderer();
         std::cout << "Renderer loaded" << std::endl;
-        pl::Model test_model = renderer.loadModel("example/assets/monkey.glb");
-        std::cout << "Model loaded" << std::endl;
-        //renderer.loadObject("example/assets/test.glb");
+        pl::Model test_model = renderer.loadModel("example/assets/simple_box.glb");
         std::cout << "Model loaded" << std::endl;
 
         float theta = 0;

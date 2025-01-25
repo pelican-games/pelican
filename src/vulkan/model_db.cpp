@@ -171,7 +171,10 @@ class ModelLoader {
         }
     }
 
-    pl::TextureRaw load_texture(const int index) {
+    std::optional<pl::TextureRaw> load_texture(const int index) {
+        if(index < 0)
+            return std::nullopt;
+
         const auto &tex = model.textures[index];
 
         TextureRaw rawData;

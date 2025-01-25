@@ -1,6 +1,7 @@
 #pragma once
 #include <glm/gtc/quaternion.hpp>
 #include <vulkan/vulkan.hpp>
+#include <optional>
 
 namespace pl {
 
@@ -46,27 +47,27 @@ struct Material {
     float metallicFactor;
     float roughnessFactor;
 
-    TextureRaw baseColorTextureRaw;
+    std::optional<TextureRaw> baseColorTextureRaw;
     vk::UniqueImage baseColorTexture;
     vk::UniqueImageView baseColorTextureView;
     vk::UniqueSampler baseColorTextureSampler;
 
-    TextureRaw metallicRoughnessTextureRaw;
+    std::optional<TextureRaw> metallicRoughnessTextureRaw;
     vk::UniqueImage metallicRoughnessTexture;
     vk::UniqueImageView metallicRoughnessTextureView;
     vk::UniqueSampler metallicRoughnessTextureSampler;
 
-    TextureRaw normalTextureRaw;
+    std::optional<TextureRaw> normalTextureRaw;
     vk::UniqueImage normalTexture;
     vk::UniqueImageView normalTextureView;
     vk::UniqueSampler normalTextureSampler;
 
-    TextureRaw occlusionTextureRaw;
+    std::optional<TextureRaw> occlusionTextureRaw;
     vk::UniqueImage occlusionTexture;
     vk::UniqueImageView occlusionTextureView;
     vk::UniqueSampler occlusionTextureSampler;
 
-    TextureRaw emissiveTextureRaw;
+    std::optional<TextureRaw> emissiveTextureRaw;
     vk::UniqueImage emissiveTexture;
     vk::UniqueImageView emissiveTextureView;
     vk::UniqueSampler emissiveTextureSampler;

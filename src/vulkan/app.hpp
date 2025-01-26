@@ -7,6 +7,8 @@
 
 namespace pl {
 
+
+
 class VulkanApp : public pl::Renderer {
         unsigned int screenWidth, screenHeight;
         GLFWwindow* window;
@@ -61,6 +63,16 @@ class VulkanApp : public pl::Renderer {
         //イメージ
         std::vector<std::pair<vk::UniqueImage, vk::UniqueDeviceMemory>> image;
 
+        //Gバッファ
+        std::vector<std::pair<vk::UniqueImage, vk::UniqueDeviceMemory>> positionImage;
+        std::vector<vk::UniqueImageView> positionImageView;
+        std::vector<std::pair<vk::UniqueImage, vk::UniqueDeviceMemory>> normalImage;
+        std::vector<vk::UniqueImageView> normalImageView;
+        std::vector<std::pair<vk::UniqueImage, vk::UniqueDeviceMemory>> albedoImage;
+        std::vector<vk::UniqueImageView> albedoImageView;
+        std::vector<std::pair<vk::UniqueImage, vk::UniqueDeviceMemory>> depthImage;
+        std::vector<vk::UniqueImageView> depthImageView;
+
         //std::vector<pl::Object> scene;
 
         //vulkan初期化用関数
@@ -90,7 +102,7 @@ class VulkanApp : public pl::Renderer {
 
         //コマンドバッファの作成
         std::pair<vk::UniqueCommandPool, std::vector<vk::UniqueCommandBuffer>> createCommandBuffers(vk::CommandPoolCreateFlagBits commandPoolFlag, vk::DeviceQueueCreateInfo queueCreateInfo, uint32_t commandBufferCount);
-        vk::ImageMemoryBarrier createImageMemoryBarrier(vk::Image image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout, vk::AccessFlags srcAccessMask, vk::AccessFlags dstAccessMask);
+        vk::ImageMemoryBarrier createImageMemoryBarrier(vk::Image image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout, vk::AccessFlags srcAccessMask, vk::AccessFlags dstAccessMask, vk::ImageAspectFlags aspectMask = vk::ImageAspectFlagBits::eColor);
         
         //レンダリング用関数
         void copyTexture(vk::CommandBuffer commandBuffer, pl::Material& material, vk::Image image, vk::Buffer stagingBuffer, vk::DeviceSize offset);

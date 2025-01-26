@@ -95,6 +95,20 @@ vk::UniquePipeline PipelineBuilder::buildPipeline(vk::Device device, vk::UniqueP
         VK_FALSE                     // alphaToOneEnable
     );
 
+    // DepthStencilStateの設定
+    depthStencil = vk::PipelineDepthStencilStateCreateInfo(
+        {},                          // flags
+        VK_TRUE,                     // depthTestEnable
+        VK_TRUE,                     // depthWriteEnable
+        vk::CompareOp::eLess,        // depthCompareOp
+        VK_FALSE,                    // depthBoundsTestEnable
+        VK_FALSE,                    // stencilTestEnable
+        vk::StencilOpState(),        // front
+        vk::StencilOpState(),        // back
+        0.0f,                        // minDepthBounds
+        1.0f                         // maxDepthBounds
+    );
+
     vk::PipelineColorBlendAttachmentState colorBlendAttachment(
         VK_FALSE,                                                                                                                                                  // blendEnable
         vk::BlendFactor::eOne,                                                                                                                                     // srcColorBlendFactor
@@ -155,7 +169,7 @@ vk::UniquePipeline PipelineBuilder::buildPipeline(vk::Device device, vk::UniqueP
         0,                             // viewMask
         colorAttachmentFormats.size(), // colorAttachmentCount
         colorAttachmentFormats.data(), // pColorAttachmentFormats
-        vk::Format::eUndefined,        // depthAttachmentFormat
+        vk::Format::eD32Sfloat,        // depthAttachmentFormat
         vk::Format::eUndefined         // stencilAttachmentFormat
     );
 
@@ -169,7 +183,7 @@ vk::UniquePipeline PipelineBuilder::buildPipeline(vk::Device device, vk::UniqueP
         &viewportState,       // pViewportState
         &rasterizer,          // pRasterizationState
         &multisampling,       // pMultisampleState
-        nullptr,              // pDepthStencilState
+        &depthStencil,              // pDepthStencilState
         &colorBlending,       // pColorBlendState
         VK_NULL_HANDLE,       // pDynamicState
         pipelineLayout.get(),       // layout

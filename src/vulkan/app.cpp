@@ -330,7 +330,7 @@ std::pair<vk::UniqueCommandPool, std::vector<vk::UniqueCommandBuffer>> VulkanApp
     return std::pair<vk::UniqueCommandPool, std::vector<vk::UniqueCommandBuffer>>(std::move(commandPool), std::move(commandBuffers));
 }
 
-vk::ImageMemoryBarrier VulkanApp::createImageMemoryBarrier(vk::Image image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout, vk::AccessFlags srcAccessMask, vk::AccessFlags dstAccessMask) {
+vk::ImageMemoryBarrier VulkanApp::createImageMemoryBarrier(vk::Image image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout, vk::AccessFlags srcAccessMask, vk::AccessFlags dstAccessMask, vk::ImageAspectFlags aspectMask) {
     vk::ImageMemoryBarrier imageMemoryBarrier(
         srcAccessMask,
         dstAccessMask,
@@ -339,7 +339,7 @@ vk::ImageMemoryBarrier VulkanApp::createImageMemoryBarrier(vk::Image image, vk::
         VK_QUEUE_FAMILY_IGNORED,
         VK_QUEUE_FAMILY_IGNORED,
         image,
-        vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
+        vk::ImageSubresourceRange(aspectMask, 0, 1, 0, 1));
     return imageMemoryBarrier;
 }
 
@@ -407,6 +407,7 @@ void VulkanApp::transferTexture(){
                 vk::ImageLayout::eShaderReadOnlyOptimal));
         }
         if(material.metallicRoughnessTextureRaw.has_value()){
+            std::cout << "metallicRoughnessTextureRaw" << std::endl;
             textureData.insert(textureData.end(), material.metallicRoughnessTextureRaw->data.begin(), material.metallicRoughnessTextureRaw->data.end());
             //material.metallicRoughnessTextureRaw->data.clear();
             if(material.metallicRoughnessTextureRaw->bits == 8){
@@ -717,6 +718,18 @@ void VulkanApp::createSwapchain() {
             vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
         swapchainImageViews.push_back(device->createImageViewUnique(imageViewCreateInfo));
     }
+
+    for(uint32_t i = 0; i < swapchainImages.size(); i++){
+        positionImage.push_back(createImage(screenWidth, screenHeight, vk::Format::eR32G32B32A32Sfloat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled));
+        positionImageView.push_back(createImageView(positionImage[i].first.get(), vk::Format::eR32G32B32A32Sfloat, vk::ImageAspectFlagBits::eColor));
+        normalImage.push_back(createImage(screenWidth, screenHeight, vk::Format::eR32G32B32A32Sfloat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled));
+        normalImageView.push_back(createImageView(normalImage[i].first.get(), vk::Format::eR32G32B32A32Sfloat, vk::ImageAspectFlagBits::eColor));
+        albedoImage.push_back(createImage(screenWidth, screenHeight, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled));
+        albedoImageView.push_back(createImageView(albedoImage[i].first.get(), vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor));
+        depthImage.push_back(createImage(screenWidth, screenHeight, vk::Format::eD32Sfloat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment));
+        depthImageView.push_back(createImageView(depthImage[i].first.get(), vk::Format::eD32Sfloat, vk::ImageAspectFlagBits::eDepth));
+    }
+
 }
 
 std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory> VulkanApp::createBuffer(
@@ -773,6 +786,19 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex) {
             vk::AttachmentStoreOp::eStore,            // storeOp
             vk::ClearValue{}                          // clearValue
             )};
+
+    std::vector<vk::RenderingAttachmentInfo> depthAttachments = {
+        vk::RenderingAttachmentInfo(
+            depthImageView.at(imageIndex).get(), // imageView
+            vk::ImageLayout::eDepthStencilAttachmentOptimal, // imageLayout
+            vk::ResolveModeFlagBits::eNone,                  // resolveMode
+            {},                                              // resolveImageView
+            vk::ImageLayout::eUndefined,                     // resolveImageLayout
+            vk::AttachmentLoadOp::eClear,                    // loadOp
+            vk::AttachmentStoreOp::eStore,                   // storeOp
+            vk::ClearValue{1.0}                          // clearValue
+            )};    
+
     vk::RenderingInfo renderingInfo(
         {},                                              // flags
         vk::Rect2D({0, 0}, {screenWidth, screenHeight}), // renderArea
@@ -780,7 +806,7 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex) {
         0,                                               // viewMask
         colorAttachments.size(),                         // colorAttachmentCount
         colorAttachments.data(),                         // pColorAttachments
-        nullptr,                                         // pDepthAttachment
+        depthAttachments.data(),                         // pDepthAttachment
         nullptr                                          // pStencilAttachment
     );
 
@@ -805,6 +831,16 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex) {
     //     {},
     //     firstMemoryBarrier
     // );
+
+    vk::ImageMemoryBarrier depthMemoriBarrier = createImageMemoryBarrier(depthImage.at(imageIndex).first.get(), vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthStencilAttachmentOptimal, vk::AccessFlagBits::eMemoryRead, vk::AccessFlagBits::eDepthStencilAttachmentWrite, vk::ImageAspectFlagBits::eDepth);
+    graphicCommandBuffers.at(0)->pipelineBarrier(
+        vk::PipelineStageFlagBits::eTopOfPipe,
+        vk::PipelineStageFlagBits::eEarlyFragmentTests,
+        {},
+        {},
+        {},
+        depthMemoriBarrier
+    );
 
     graphicCommandBuffers.at(0)->beginRendering(renderingInfo);
 
@@ -847,13 +883,8 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex) {
 
     graphicCommandBuffers.at(0)->endRendering();
 
-    vk::ImageMemoryBarrier imageMemoryBarrier;
-    imageMemoryBarrier.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
-    imageMemoryBarrier.oldLayout = vk::ImageLayout::eUndefined;
-    imageMemoryBarrier.newLayout = vk::ImageLayout::ePresentSrcKHR;
-    imageMemoryBarrier.image = swapchainImages[imageIndex];
-    imageMemoryBarrier.setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
-
+    vk::ImageMemoryBarrier imageMemoryBarrier = createImageMemoryBarrier(swapchainImages.at(imageIndex), vk::ImageLayout::eUndefined, vk::ImageLayout::ePresentSrcKHR, vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eMemoryRead);
+    
     graphicCommandBuffers.at(0)->pipelineBarrier(
         vk::PipelineStageFlagBits::eColorAttachmentOutput,
         vk::PipelineStageFlagBits::eBottomOfPipe,

@@ -160,6 +160,23 @@ void copyImgData(vk::Device device, uint32_t graphicsQueueFamilyIndex, vk::Queue
         tmpCmdBufs[0]->copyBufferToImage(imgStagingBuf, texImage, vk::ImageLayout::eTransferDstOptimal, {imgCopyRegion});
     }
 
+    {
+        vk::ImageMemoryBarrier barrior;
+        barrior.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+        barrior.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        barrior.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrior.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrior.image = texImage;
+        barrior.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+        barrior.subresourceRange.baseMipLevel = 0;
+        barrior.subresourceRange.levelCount = 1;
+        barrior.subresourceRange.baseArrayLayer = 0;
+        barrior.subresourceRange.layerCount = 1;
+        barrior.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+        barrior.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+        tmpCmdBufs[0]->pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, {}, {}, {}, {barrior});
+    }
+
     tmpCmdBufs[0]->end();
 
     vk::CommandBuffer submitCmdBuf[1] = {tmpCmdBufs[0].get()};

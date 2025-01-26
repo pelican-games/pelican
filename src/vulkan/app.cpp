@@ -383,13 +383,13 @@ void VulkanApp::copyTexture(vk::CommandBuffer commandBuffer, pl::Material &mater
     commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, {}, {}, {}, imageMemoryBarrier2);
 }
 
-void VulkanApp::transferTexture(const pl::ModelData& model) {
+void VulkanApp::transferTexture(const pl::ModelData &model) {
     std::vector<uint8_t> textureData;
     std::vector<vk::DescriptorPoolSize> descriptorPoolSizes;
     std::vector<vk::DescriptorImageInfo> imageInfos;
 
     for (auto p_material : model.used_materials) {
-        auto& material = *p_material;
+        auto &material = *p_material;
 
         if (material.baseColorTextureRaw.has_value()) {
             textureData.insert(textureData.end(), material.baseColorTextureRaw->data.begin(), material.baseColorTextureRaw->data.end());
@@ -888,7 +888,33 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex) {
 
         model.instanceAttributes.clear();
     }
+    graphicCommandBuffers.at(0)->endRendering();
 
+    {
+        std::vector<vk::RenderingAttachmentInfo> colorAttachments = {
+            vk::RenderingAttachmentInfo(
+                swapchainImageViews.at(imageIndex).get(), // imageView
+                vk::ImageLayout::eColorAttachmentOptimal, // imageLayout
+                vk::ResolveModeFlagBits::eNone,           // resolveMode
+                {},                                       // resolveImageView
+                vk::ImageLayout::eUndefined,              // resolveImageLayout
+                vk::AttachmentLoadOp::eLoad,              // loadOp
+                vk::AttachmentStoreOp::eStore,            // storeOp
+                vk::ClearValue{}                          // clearValue
+                )};
+
+        vk::RenderingInfo renderingInfo(
+            {},                                              // flags
+            vk::Rect2D({0, 0}, {screenWidth, screenHeight}), // renderArea
+            1,                                               // layerCount
+            0,                                               // viewMask
+            colorAttachments.size(),                         // colorAttachmentCount
+            colorAttachments.data(),                         // pColorAttachments
+            nullptr,                                         // pDepthAttachment
+            nullptr                                          // pStencilAttachment
+        );
+        graphicCommandBuffers.at(0)->beginRendering(renderingInfo);
+    }
     {
         graphicCommandBuffers.at(0)->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline2D.get());
         for (const auto &drawInfo : uiImageDrawInfos) {

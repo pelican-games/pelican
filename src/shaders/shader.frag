@@ -5,7 +5,10 @@
 
 layout(location = 0) out vec4 outColor;
 
-layout(location = 0) in vec2 fragmentUV;
+layout(location = 0) in vec3 fragmentPosition;
+layout(location = 1) in vec2 fragmentUV;
+layout(location = 2) in vec3 fragmentNormal;
+
 
 
 layout(set = 0, binding = 0) uniform sampler2D texSampler;
@@ -16,4 +19,5 @@ layout(set = 0, binding = 4) uniform sampler2D ambientSampler;
 
 void main() {
     outColor = texture(texSampler, fragmentUV);
+    outColor = vec4(fragmentNormal, 1.0);
 }

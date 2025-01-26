@@ -135,11 +135,13 @@ pl::Model VulkanApp::loadModel(std::filesystem::path file_path, uint32_t max_obj
 
     // シェーダーモジュールの作成
     vk::UniqueShaderModule vertShaderModule = createShaderModule("src/shaders/shader.vert.spv");
+    vk::UniqueShaderModule geomShaderModule = createShaderModule("src/shaders/shader.geom.spv");
     vk::UniqueShaderModule fragShaderModule = createShaderModule("src/shaders/shader.frag.spv");
 
     // パイプラインの作成
     std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = {
         vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eVertex, vertShaderModule.get(), "main"),
+        vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eGeometry, geomShaderModule.get(), "main"),
         vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eFragment, fragShaderModule.get(), "main")};
 
     pipelineBuilder = std::make_unique<PipelineBuilder>();
@@ -373,6 +375,7 @@ void VulkanApp::transferTexture(){
     for(auto &material : modelDb.materials){
 
         if(material.baseColorTextureRaw.has_value()){
+            std::cout << "baseColorTextureRaw" << std::endl;
             textureData.insert(textureData.end(), material.baseColorTextureRaw->data.begin(), material.baseColorTextureRaw->data.end());
             //material.baseColorTextureRaw->data.clear();
             if(material.baseColorTextureRaw->bits == 8){   

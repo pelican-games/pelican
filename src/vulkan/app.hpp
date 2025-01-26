@@ -68,10 +68,7 @@ class VulkanApp : public pl::Renderer {
         vk::UniqueFence swapchainImgFence;
 
         //デスクリプタセット
-        std::vector<vk::DescriptorSetLayoutBinding> descriptorSetLayoutBindings;
         vk::UniqueDescriptorSetLayout descriptorSetLayout;
-        vk::UniqueDescriptorPool descriptorPool;
-        std::vector<vk::UniqueDescriptorSet> descriptorSets;
 
         //イメージ
         std::vector<std::pair<vk::UniqueImage, vk::UniqueDeviceMemory>> image;
@@ -119,7 +116,7 @@ class VulkanApp : public pl::Renderer {
         
         //レンダリング用関数
         void copyTexture(vk::CommandBuffer commandBuffer, pl::Material& material, vk::Image image, vk::Buffer stagingBuffer, vk::DeviceSize offset);
-        void transferTexture();
+        void transferTexture(const pl::ModelData&);
         void copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height, vk::DeviceSize offset);
         void drawGBuffer(uint32_t objectIndex);  
 

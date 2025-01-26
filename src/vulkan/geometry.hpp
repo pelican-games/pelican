@@ -86,6 +86,9 @@ struct Material {
     vk::UniqueImageView emissiveTextureView;
     vk::UniqueSampler emissiveTextureSampler;
 
+    vk::UniqueDescriptorPool descPool;
+    vk::UniqueDescriptorSet descSet;
+
     vk::DescriptorSetLayoutBinding getDescriptorSetLayoutBinding(uint32_t binding) {
         uint32_t count = 0;
         if(baseColorTextureRaw.has_value()){

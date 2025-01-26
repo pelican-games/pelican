@@ -235,9 +235,11 @@ class ModelLoader {
             throw std::runtime_error(std::string("gltf load error: ") + err);
         }
 
+        pl::ModelData modelDat;
         p_materials.resize(model.materials.size());
         for (int i = 0; const auto &material : model.materials) {
             p_materials[i] = load_material(material);
+            modelDat.used_materials.push_back(p_materials[i]);
             i++;
         }
 
@@ -246,10 +248,9 @@ class ModelLoader {
             load_node(mesh, model.nodes[nodeIndex]);
         }
 
-        pl::ModelData model;
-        model.meshes.push_back(mesh);
+        modelDat.meshes.push_back(mesh);
 
-        db.models.emplace_front(std::move(model));
+        db.models.emplace_front(std::move(modelDat));
         p_model = &db.models.front();
     }
 

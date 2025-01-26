@@ -4,9 +4,10 @@
 #include <vector>
 #include <btBulletDynamicsCommon.h>
 #include <btBulletCollisionCommon.h>
+#include <memory>
 
 namespace pl {
-
+    constexpr float coulomb_Constant = 0.89875;
     class MagneticBall {
     public:
         btRigidBody* rigidbody;
@@ -17,6 +18,12 @@ namespace pl {
 
         MagneticBall(btDiscreteDynamicsWorld* dynamicsWorld, float strength, float mas, float rad, int pol);
         ~MagneticBall();
+    };
+
+    struct Boxdata {
+        btVector3 translation;
+        btQuaternion rotation;
+        btVector3 scale;
     };
 
     void setupWorld(btDiscreteDynamicsWorld*& dynamicsWorld,
@@ -34,10 +41,17 @@ namespace pl {
         btCollisionDispatcher* dispatcher,
         btSequentialImpulseConstraintSolver* solver);
 
-    unsigned int countBallsInDomain(const btVector3& leftBoundaryPoint,
-        const btVector3& rightBoundaryPoint,
-        const std::vector<MagneticBall>& balls);
+    void reverseGravityInDomain(btDiscreteDynamicsWorld* dynamicsWorld, const btVector3& leftBoundaryPoint, const btVector3& rightBoundaryPoint, const std::vector<std::unique_ptr<pl::MagneticBall>>& balls);
 
+    void moveKinematicModel(btRigidBody* rigidBody, const btVector3& newPosition);
+
+    bool isObjectInDirection(btDiscreteDynamicsWorld* dynamicsWorld, const btVector3& origin, const btVector3& direction, float distance);
+
+    std::vector<int> ballIndexesInDomain(const btVector3& leftBoundaryPoint, const btVector3& rightBoundaryPoint, const std::vector<std::unique_ptr<pl::MagneticBall>>& balls);
+
+    void calculateMagneticForce(std::vector<std::unique_ptr<pl::MagneticBall>>& balls);
+
+    btRigidBody* createKinematicBodies(std::vector<Boxdata> modeldata);
 }
 
 #endif

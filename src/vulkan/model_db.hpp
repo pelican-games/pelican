@@ -15,6 +15,7 @@ struct ModelData {
     std::vector<pl::Mesh> meshes;//現状は1つのみ
     std::vector<pl::InstanceAttribute> instanceAttributes;
     uint32_t modelIndex;
+    std::vector<pl::Material*> used_materials;
     void add_object(ObjectDataBase& objDb);
 };
 

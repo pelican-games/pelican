@@ -36,9 +36,23 @@ struct Vertex {
 enum class FilterType {
     Nearest, Linear, Cubic,
 };
+
 struct TextureRaw {
+    vk::Filter toVkFilter(FilterType filter) {
+        switch (filter) {
+        case FilterType::Nearest:
+            return vk::Filter::eNearest;
+        case FilterType::Linear:
+            return vk::Filter::eLinear;
+        case FilterType::Cubic:
+            return vk::Filter::eCubicIMG;
+        default:
+            return vk::Filter::eLinear;
+        }
+    }
     FilterType magFilter, minFilter;
     int width, height;
+    int bits;
     std::vector<uint8_t> data;
 };
 
@@ -48,29 +62,73 @@ struct Material {
     float roughnessFactor;
 
     std::optional<TextureRaw> baseColorTextureRaw;
-    vk::UniqueImage baseColorTexture;
+    std::pair<vk::UniqueImage, vk::UniqueDeviceMemory> baseColorTexture;
     vk::UniqueImageView baseColorTextureView;
     vk::UniqueSampler baseColorTextureSampler;
 
     std::optional<TextureRaw> metallicRoughnessTextureRaw;
-    vk::UniqueImage metallicRoughnessTexture;
+    std::pair<vk::UniqueImage, vk::UniqueDeviceMemory> metallicRoughnessTexture;
     vk::UniqueImageView metallicRoughnessTextureView;
     vk::UniqueSampler metallicRoughnessTextureSampler;
 
     std::optional<TextureRaw> normalTextureRaw;
-    vk::UniqueImage normalTexture;
+    std::pair<vk::UniqueImage, vk::UniqueDeviceMemory> normalTexture;
     vk::UniqueImageView normalTextureView;
     vk::UniqueSampler normalTextureSampler;
 
     std::optional<TextureRaw> occlusionTextureRaw;
-    vk::UniqueImage occlusionTexture;
+    std::pair<vk::UniqueImage, vk::UniqueDeviceMemory> occlusionTexture;
     vk::UniqueImageView occlusionTextureView;
     vk::UniqueSampler occlusionTextureSampler;
 
     std::optional<TextureRaw> emissiveTextureRaw;
-    vk::UniqueImage emissiveTexture;
+    std::pair<vk::UniqueImage, vk::UniqueDeviceMemory> emissiveTexture;
     vk::UniqueImageView emissiveTextureView;
     vk::UniqueSampler emissiveTextureSampler;
+
+    vk::DescriptorSetLayoutBinding getDescriptorSetLayoutBinding(uint32_t binding) {
+        uint32_t count = 0;
+        if(baseColorTextureRaw.has_value()){
+            count++;
+        }
+        if(metallicRoughnessTextureRaw.has_value()){
+            count++;
+        }
+        if(normalTextureRaw.has_value()){
+            count++;
+        }
+        if(occlusionTextureRaw.has_value()){
+            count++;
+        }
+        if(emissiveTextureRaw.has_value()){
+            count++;
+        }
+        return {
+            vk::DescriptorSetLayoutBinding(binding, vk::DescriptorType::eCombinedImageSampler, count, vk::ShaderStageFlagBits::eFragment)
+        };
+    }
+
+    vk::DescriptorPoolSize getDescriptorPoolSize() {
+        uint32_t count = 0;
+        if(baseColorTextureRaw.has_value()){
+            count++;
+        }
+        if(metallicRoughnessTextureRaw.has_value()){
+            count++;
+        }
+        if(normalTextureRaw.has_value()){
+            count++;
+        }
+        if(occlusionTextureRaw.has_value()){
+            count++;
+        }
+        if(emissiveTextureRaw.has_value()){
+            count++;
+        }
+        return {
+            vk::DescriptorType::eCombinedImageSampler, count
+        };
+    }
 };
 
 struct Primitive {

@@ -3,12 +3,11 @@
 
 namespace pl {
 
-class PipelineBuilder {
-
+class PipelineBuilder {                                                                                                                                                                                                                                
   public:
     void clear();
     PipelineBuilder() { clear(); };
-    vk::UniquePipeline buildPipeline(vk::Device, vk::UniquePipelineLayout& pipelinelayout, std::vector<vk::PipelineShaderStageCreateInfo> shaderStages, uint32_t WIDTH, uint32_t HEIGHT);
+    vk::UniquePipeline buildPipeline(vk::Device device, vk::UniquePipelineLayout& pipelineLayout,std::vector<vk::DescriptorSetLayout> descriptorSetLayouts, std::vector<vk::PipelineShaderStageCreateInfo> shaderStagesInput, uint32_t WIDTH, uint32_t HEIGHT);
 
     vk::UniquePipeline gBufPipelinr(vk::Device, vk::UniquePipelineLayout& pipelinelayout, std::vector<vk::PipelineShaderStageCreateInfo> shaderStages, uint32_t WIDTH, uint32_t HEIGHT);
     vk::UniquePipeline shadingPipeline(vk::Device, vk::UniquePipelineLayout& pipelinelayout, std::vector<vk::PipelineShaderStageCreateInfo> shaderStages, uint32_t WIDTH, uint32_t HEIGHT);

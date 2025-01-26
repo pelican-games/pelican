@@ -10,6 +10,8 @@
 
 namespace pl {
 
+
+
 class VulkanApp : public pl::Renderer {
         unsigned int screenWidth, screenHeight;
         GLFWwindow* window;
@@ -28,6 +30,8 @@ class VulkanApp : public pl::Renderer {
         vk::UniqueInstance instance;
         vk::PhysicalDevice physicalDevice;
         vk::UniqueDevice device;
+
+        std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
         std::vector<vk::Queue> graphicsQueues;
         // std::vector<vk::Queue> computeQueues;
 
@@ -63,8 +67,24 @@ class VulkanApp : public pl::Renderer {
 
         vk::UniqueFence swapchainImgFence;
 
+        //デスクリプタセット
+        std::vector<vk::DescriptorSetLayoutBinding> descriptorSetLayoutBindings;
+        vk::UniqueDescriptorSetLayout descriptorSetLayout;
+        vk::UniqueDescriptorPool descriptorPool;
+        std::vector<vk::UniqueDescriptorSet> descriptorSets;
+
         //イメージ
-        vk::UniqueImage image;
+        std::vector<std::pair<vk::UniqueImage, vk::UniqueDeviceMemory>> image;
+
+        //Gバッファ
+        std::vector<std::pair<vk::UniqueImage, vk::UniqueDeviceMemory>> positionImage;
+        std::vector<vk::UniqueImageView> positionImageView;
+        std::vector<std::pair<vk::UniqueImage, vk::UniqueDeviceMemory>> normalImage;
+        std::vector<vk::UniqueImageView> normalImageView;
+        std::vector<std::pair<vk::UniqueImage, vk::UniqueDeviceMemory>> albedoImage;
+        std::vector<vk::UniqueImageView> albedoImageView;
+        std::vector<std::pair<vk::UniqueImage, vk::UniqueDeviceMemory>> depthImage;
+        std::vector<vk::UniqueImageView> depthImageView;
 
         //std::vector<pl::Object> scene;
 
@@ -80,7 +100,8 @@ class VulkanApp : public pl::Renderer {
         uint32_t checkPresentationSupport(vk::SurfaceKHR surface);
         
         //イメージの作成
-        vk::UniqueImage createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage);
+        std::pair <vk::UniqueImage , vk::UniqueDeviceMemory> createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage);
+        vk::UniqueImageView createImageView(vk::Image image, vk::Format format, vk::ImageAspectFlags aspectFlags);
         uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
         //シェーダーモジュールの作成
@@ -89,13 +110,19 @@ class VulkanApp : public pl::Renderer {
         //スワップチェーンの作成
         void createSwapchain();
 
-        std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory> createBuffer(vk::BufferCreateFlags flags, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
+        std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory> createBuffer(vk::BufferCreateFlags flags, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::SharingMode sharingMode = vk::SharingMode::eExclusive);
         void setBuffer();
 
+        //コマンドバッファの作成
+        std::pair<vk::UniqueCommandPool, std::vector<vk::UniqueCommandBuffer>> createCommandBuffers(vk::CommandPoolCreateFlagBits commandPoolFlag, vk::DeviceQueueCreateInfo queueCreateInfo, uint32_t commandBufferCount);
+        vk::ImageMemoryBarrier createImageMemoryBarrier(vk::Image image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout, vk::AccessFlags srcAccessMask, vk::AccessFlags dstAccessMask, vk::ImageAspectFlags aspectMask = vk::ImageAspectFlagBits::eColor);
         
-
-        //レンダリング
+        //レンダリング用関数
+        void copyTexture(vk::CommandBuffer commandBuffer, pl::Material& material, vk::Image image, vk::Buffer stagingBuffer, vk::DeviceSize offset);
+        void transferTexture();
+        void copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height, vk::DeviceSize offset);
         void drawGBuffer(uint32_t objectIndex);  
+
 
     public:
         //レンダリング

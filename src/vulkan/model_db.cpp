@@ -204,6 +204,7 @@ class ModelLoader {
         rawData.width = image.width;
         rawData.height = image.height;
         rawData.data = image.image;
+        rawData.bits = image.bits;
         return rawData;
     }
 

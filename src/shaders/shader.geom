@@ -7,6 +7,7 @@ layout(location = 1) in vec2 geomUV[];
 layout(triangle_strip, max_vertices = 3) out;
 
 layout(location = 0) out vec3 fragPos;
+layout(location = 1) out vec2 fragUV;
 layout(location = 2) out vec3 fragNormal;
 
 void main() {
@@ -21,6 +22,7 @@ void main() {
         vec4 offsetPosition = gl_in[i].gl_Position;
         gl_Position = gl_in[i].gl_Position;
         fragNormal = normal;  // 入力色をそのまま出力
+        fragUV = geomUV[i];  // UV座標をそのまま出力
         //fragDepth = geomPos[i];  // デプス値を計算して出力
         //fragIndex = geomIndex[i];  // インデックスを出力
         //fragObjPos = geomObjPos[i];  // オブジェクト座標を出力

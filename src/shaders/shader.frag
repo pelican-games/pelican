@@ -18,6 +18,38 @@ layout(set = 0, binding = 3) uniform sampler2D emissiveSampler;
 layout(set = 0, binding = 4) uniform sampler2D ambientSampler;
 
 void main() {
-    outColor = texture(texSampler, fragmentUV);
-    outColor = vec4(fragmentNormal, 1.0);
+    // 太陽光の宣言
+    vec3 sunDirection = normalize(vec3(-1.0, -1.0, -1.0)); // 太陽光の方向
+    vec3 sunColor = vec3(1.0, 1.0, 1.0); // 太陽光の色
+
+    // マテリアルの取得
+    vec3 ambient = vec3(0,0,0);
+    vec3 albedo = texture(texSampler, fragmentUV).xyz;
+    vec3 normal = fragmentNormal.rgb;
+    vec3 specularColor = vec3(0.0, 0.0, 0.0);
+    vec3 emissive = vec3(0.0, 0.0, 0.0);
+    float shininess = 32.0;
+
+    // 環境光
+    vec3 ambientLight = ambient * albedo;
+
+    vec3 N = normalize(fragmentNormal);
+    vec3 V = normalize(-fragmentPosition); // 視線ベクトル
+    vec3 L = normalize(sunDirection); // 光源ベクトル
+    vec3 R = reflect(-L, N); // 反射ベクトル
+
+    // 拡散反射
+    float NdotL = max(dot(N, L), 0.0);
+    vec3 diffuse = NdotL * albedo * sunColor;
+
+    // 鏡面反射
+    float RdotV = max(dot(R, V), 0.0);
+    vec3 specular = pow(RdotV, shininess) * specularColor * sunColor;
+
+    // 照明の合成
+    vec3 color = ambientLight + diffuse + specular + emissive;
+
+    // ガンマ補正
+    color = pow(color, vec3(1.0 / 2.2));
+    outColor = vec4(color, 1.0);
 }

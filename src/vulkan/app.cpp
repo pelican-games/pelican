@@ -976,7 +976,7 @@ void VulkanApp::setCamera(glm::vec3 pos, glm::vec3 dir, glm::vec3 up) {
 }
 
 void VulkanApp::setProjection(float horizontalAngle) {
-    vpMatrix.projection = glm::perspective(glm::radians(horizontalAngle), static_cast<float>(screenWidth) / static_cast<float>(screenHeight), 0.1f, 100.0f);
+    vpMatrix.projection = glm::perspective(glm::radians(horizontalAngle), static_cast<float>(viewport3d.width) / static_cast<float>(viewport3d.height), 0.1f, 100.0f);
 }
 
 void VulkanApp::drawModel(const Model &model, glm::mat4x4 modelMatrix) {

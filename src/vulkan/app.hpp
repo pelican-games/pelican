@@ -67,6 +67,8 @@ class VulkanApp : public pl::Renderer {
 
         vk::UniqueFence swapchainImgFence;
 
+        vk::Viewport viewport3d;
+
         //デスクリプタセット
         vk::UniqueDescriptorSetLayout descriptorSetLayout;
 
@@ -131,6 +133,7 @@ class VulkanApp : public pl::Renderer {
         void setProjection(float horizontalAngle) override;
         pl::Model loadModel(std::filesystem::path file_path, uint32_t max_object_num) override;
         //void loadObject(std::filesystem::path file_path) override;
+        void setViewport(int x, int y, int w, int h) override;
 
         void drawUIImage(const UIImage &image, int x, int y, int texX, int texY, int texW, int texH, float scaleX, float scaleY);
         pl::UIImage loadUIImage(std::filesystem::path file_path);

@@ -138,6 +138,8 @@ VulkanApp::VulkanApp(GLFWwindow *window, unsigned int screenWidth, unsigned int 
     // スワップチェーンイメージ用フェンスの作成
     vk::FenceCreateInfo fenceCreateInfo{};
     swapchainImgFence = device->createFenceUnique(fenceCreateInfo);
+
+    setViewport(0, 0, screenWidth, screenHeight);
 }
 
 VulkanApp::~VulkanApp() {
@@ -850,6 +852,7 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex) {
         {},
         depthMemoriBarrier);
 
+    graphicCommandBuffers.at(0)->setViewport(0, {viewport3d});
     graphicCommandBuffers.at(0)->beginRendering(renderingInfo);
 
     vk::ClearValue clearValue(vk::ClearColorValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}));
@@ -992,6 +995,15 @@ void VulkanApp::drawUIImage(const UIImage &image, int x, int y, int texX, int te
     push.texclip_tl = {texX / image.pDat->width, texY / image.pDat->height};
     push.texclip_sz = {texW / image.pDat->width, texH / image.pDat->height};
     uiImageDrawInfos.push_back({image.pDat, push});
+}
+
+void VulkanApp::setViewport(int x, int y, int w, int h) {
+    viewport3d.x = x;
+    viewport3d.y = y;
+    viewport3d.width = w;
+    viewport3d.height = h;
+    viewport3d.minDepth = 0.0;
+    viewport3d.maxDepth = 1.0;
 }
 
 } // namespace pl

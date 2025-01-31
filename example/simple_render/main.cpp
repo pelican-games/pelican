@@ -15,6 +15,8 @@ int main() {
 
         float theta = 0;
 
+        renderer.setViewport(0, 0, 400, 300);
+
         while(sys.frameUpdate()) {
             theta += 0.001f;
 

@@ -66,7 +66,7 @@ vk::UniquePipeline PipelineBuilder::buildPipeline(vk::Device device, vk::UniqueP
     viewportState = vk::PipelineViewportStateCreateInfo(
         {},        // flags
         1,         // viewportCount
-        &viewport, // pViewports
+        nullptr,   // pViewports
         1,         // scissorCount
         &scissor   // pScissors
     );
@@ -131,8 +131,7 @@ vk::UniquePipeline PipelineBuilder::buildPipeline(vk::Device device, vk::UniqueP
 
     // DynamicStateの設定
     std::vector<vk::DynamicState> dynamicStates = {
-        vk::DynamicState::eViewport,
-        vk::DynamicState::eScissor};
+        vk::DynamicState::eViewport};
 
     vk::PipelineDynamicStateCreateInfo dynamicState(
         {},                   // flags
@@ -185,7 +184,7 @@ vk::UniquePipeline PipelineBuilder::buildPipeline(vk::Device device, vk::UniqueP
         &multisampling,       // pMultisampleState
         &depthStencil,              // pDepthStencilState
         &colorBlending,       // pColorBlendState
-        VK_NULL_HANDLE,       // pDynamicState
+        &dynamicState,       // pDynamicState
         pipelineLayout.get(),       // layout
         VK_NULL_HANDLE,       // renderPass
         0,                    // subpass

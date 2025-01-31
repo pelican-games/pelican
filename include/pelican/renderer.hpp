@@ -11,6 +11,7 @@ namespace pl {
 struct ModelData;
 struct Model {
     pl::ModelData *pDat;
+    std::vector<std::vector<glm::vec3>> getVertices() const;
 };
 
 struct UIImageData;

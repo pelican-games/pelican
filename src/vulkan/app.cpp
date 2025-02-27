@@ -972,7 +972,7 @@ void VulkanApp::drawFrame() {
 }
 
 void VulkanApp::setCamera(glm::vec3 pos, glm::vec3 dir, glm::vec3 up) {
-    vpMatrix.view = glm::lookAt(pos, dir, up);
+    vpMatrix.view = glm::lookAt(pos, pos + dir, up);
 }
 
 void VulkanApp::setProjection(float horizontalAngle) {

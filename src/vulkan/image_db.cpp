@@ -230,6 +230,7 @@ vk::UniqueDescriptorPool createDescPool(vk::Device device) {
     descPoolSize[0].descriptorCount = maxImages;
 
     vk::DescriptorPoolCreateInfo descPoolCreateInfo;
+    descPoolCreateInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
     descPoolCreateInfo.poolSizeCount = std::size(descPoolSize);
     descPoolCreateInfo.pPoolSizes = descPoolSize;
     descPoolCreateInfo.maxSets = maxImages;

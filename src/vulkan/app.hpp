@@ -16,6 +16,10 @@ class VulkanApp : public pl::Renderer {
         unsigned int screenWidth, screenHeight;
         GLFWwindow* window;
 
+        vk::UniqueInstance instance;
+        vk::PhysicalDevice physicalDevice;
+        vk::UniqueDevice device;
+        
         pl::ObjectDataBase objDb;
         pl::ModelDataBase modelDb;
 
@@ -26,10 +30,6 @@ class VulkanApp : public pl::Renderer {
         ~VulkanApp() override;
 
     private:
-    
-        vk::UniqueInstance instance;
-        vk::PhysicalDevice physicalDevice;
-        vk::UniqueDevice device;
 
         std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
         std::vector<vk::Queue> graphicsQueues;

@@ -56,6 +56,10 @@ target_link_libraries(pelican PUBLIC ${Vulkan_LIBRARIES})
 find_path(TINYGLTF_INCLUDE_DIRS "tiny_gltf.h")
 target_include_directories(pelican PRIVATE ${TINYGLTF_INCLUDE_DIRS})
 
+#fastgltf
+find_package(fastgltf CONFIG REQUIRED)
+target_link_libraries(pelican PRIVATE fastgltf::fastgltf)
+
 add_subdirectory(example)
 
 ## Bullet Physics

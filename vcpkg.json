@@ -22,6 +22,9 @@
     },
     {
       "name": "tinygltf"
+    },
+    {
+      "name": "fastgltf"
     }
   ]
 }

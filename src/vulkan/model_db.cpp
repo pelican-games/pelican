@@ -133,7 +133,7 @@ class ModelLoader {
         // transform
         pl::Transform transform;
         transform.translation = glm::vec3{trs.translation[0], trs.translation[1], trs.translation[2]};
-        transform.rotation = glm::quat{trs.rotation[0], trs.rotation[1], trs.rotation[2], trs.rotation[3]};
+        transform.rotation = glm::quat{trs.rotation[3], trs.rotation[0], trs.rotation[1], trs.rotation[2]};
         transform.scale = glm::vec3{trs.scale[0], trs.scale[1], trs.scale[2]};
 
         for (const auto childNodeIndex : node.children) {

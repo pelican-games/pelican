@@ -2,14 +2,17 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "model_db.hpp"
+#include <chrono>
+#include <fastgltf/core.hpp>
+#include <fastgltf/glm_element_traits.hpp>
+#include <fastgltf/tools.hpp>
 #include <filesystem>
 #include <iostream>
-#include <tiny_gltf.h>
+#include <stb_image.h>
 
 namespace pl {
 
-template <class T>
-glm::vec4 to_vec4(std::vector<T> v) {
+glm::vec4 to_vec4(const fastgltf::math::nvec4 &v) {
     return glm::vec4(v[0], v[1], v[2], v[3]);
 }
 
@@ -17,152 +20,128 @@ class ModelLoader {
     ModelDataBase &db;
     std::vector<pl::Material *> p_materials;
     pl::ModelData *p_model;
-    tinygltf::Model model;
+    fastgltf::Asset model;
 
-    template <uint32_t expectType, uint32_t expectComponentType, class F>
-    void try_load_indices(const tinygltf::Primitive &primitive, F &&f) {
-        const auto accessorIndex = primitive.indices;
+    template <fastgltf::AccessorType expectType, fastgltf::ComponentType expectComponentType, class T, class F>
+    void try_load_indices(const fastgltf::Primitive &primitive, F &&f) {
+        const auto accessorIndex = primitive.indicesAccessor.value();
+        const auto &accessor = model.accessors[accessorIndex];
+        // if (!(accessor.type == expectType && accessor.componentType == expectComponentType))
+        //     return;
+
+        fastgltf::iterateAccessorWithIndex<T>(model, accessor, f);
+    }
+
+    template <fastgltf::AccessorType expectType, fastgltf::ComponentType expectComponentType, class T, class F>
+    void try_load_attribute(const char *name, const fastgltf::Primitive &primitive, F &&f) {
+        const auto it = primitive.findAttribute(name);
+        if (it == primitive.attributes.cend())
+            return;
+        const auto accessorIndex = it->accessorIndex;
         const auto &accessor = model.accessors[accessorIndex];
         if (!(accessor.type == expectType && accessor.componentType == expectComponentType))
             return;
 
-        const auto bufferViewIndex = accessor.bufferView;
-        const auto &bufferView = model.bufferViews[bufferViewIndex];
-        const auto bufferIndex = bufferView.buffer;
-        const auto &buffer = model.buffers[bufferIndex];
-        const auto p = buffer.data.data() + bufferView.byteOffset + accessor.byteOffset;
-        const auto stride = accessor.ByteStride(bufferView);
-        for (uint32_t i = 0; i < accessor.count; i++) {
-            f(i, p + i * stride);
-        }
+        fastgltf::iterateAccessorWithIndex<T>(model, accessor, f);
     }
 
-    template <uint32_t expectType, uint32_t expectComponentType, class F>
-    void try_load_attribute(const char *name, const tinygltf::Primitive &primitive, F &&f) {
-        if (primitive.attributes.find(name) == primitive.attributes.end())
-            return;
-        const auto accessorIndex = primitive.attributes.at(name);
-        const auto &accessor = model.accessors[accessorIndex];
-        if (!(accessor.type == expectType && accessor.componentType == expectComponentType))
-            return;
-
-        const auto bufferViewIndex = accessor.bufferView;
-        const auto &bufferView = model.bufferViews[bufferViewIndex];
-        const auto bufferIndex = bufferView.buffer;
-        const auto &buffer = model.buffers[bufferIndex];
-        const auto p = buffer.data.data() + bufferView.byteOffset + accessor.byteOffset;
-        const auto stride = accessor.ByteStride(bufferView);
-
-        for (uint32_t i = 0; i < accessor.count; i++) {
-            f(i, p + i * stride);
-        }
-    }
-
-    pl::Primitive load_primitive(const tinygltf::Primitive &primitive) {
+    pl::Primitive load_primitive(const fastgltf::Primitive &primitive) {
         pl::Primitive primitiveData;
 
         // material
-        if (primitive.material >= 0)
-            primitiveData.material = p_materials[primitive.material];
+        if (primitive.materialIndex.has_value())
+            primitiveData.material = p_materials[primitive.materialIndex.value()];
 
         // indices
-        if (primitive.indices < 0)
+        if (!primitive.indicesAccessor.has_value())
             throw std::runtime_error("model load error: no index buffer");
-        const auto indCount = model.accessors[primitive.indices].count;
+        const auto indCount = model.accessors[primitive.indicesAccessor.value()].count;
         primitiveData.indices.resize(indCount);
-        try_load_indices<TINYGLTF_TYPE_SCALAR, TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE>(
+
+        try_load_indices<fastgltf::AccessorType::Scalar, fastgltf::ComponentType::UnsignedByte, uint8_t>(
             primitive,
-            [&primitiveData](uint32_t i, const uint8_t *p) {
-                primitiveData.indices[i] = *reinterpret_cast<const uint8_t *>(p);
+            [&primitiveData](const uint8_t p, size_t i) {
+                primitiveData.indices[i] = p;
             });
-        try_load_indices<TINYGLTF_TYPE_SCALAR, TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT>(
+        try_load_indices<fastgltf::AccessorType::Scalar, fastgltf::ComponentType::UnsignedShort, uint16_t>(
             primitive,
-            [&primitiveData](uint32_t i, const uint8_t *p) {
-                primitiveData.indices[i] = *reinterpret_cast<const uint16_t *>(p);
+            [&primitiveData](const uint16_t p, size_t i) {
+                primitiveData.indices[i] = p;
             });
-        try_load_indices<TINYGLTF_TYPE_SCALAR, TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT>(
+        try_load_indices<fastgltf::AccessorType::Scalar, fastgltf::ComponentType::UnsignedInt, uint32_t>(
             primitive,
-            [&primitiveData](uint32_t i, const uint8_t *p) {
-                primitiveData.indices[i] = *reinterpret_cast<const uint32_t *>(p);
+            [&primitiveData](const uint32_t p, size_t i) {
+                primitiveData.indices[i] = p;
             });
 
         // attributes
-        const auto vertCount = model.accessors[primitive.attributes.at("POSITION")].count;
+        const auto vertCount = model.accessors[primitive.findAttribute("POSITION")->accessorIndex].count;
         primitiveData.vertices.resize(vertCount);
 
-        try_load_attribute<TINYGLTF_TYPE_VEC3, TINYGLTF_COMPONENT_TYPE_FLOAT>(
+        try_load_attribute<fastgltf::AccessorType::Vec3, fastgltf::ComponentType::Float, fastgltf::math::fvec3>(
             "POSITION", primitive,
-            [&primitiveData](uint32_t i, const uint8_t *p) {
-                primitiveData.vertices[i].position = *reinterpret_cast<const glm::vec3 *>(p);
+            [&primitiveData](fastgltf::math::fvec3 p, size_t i) {
+                primitiveData.vertices[i].position = glm::vec3{p.x(), p.y(), p.z()};
             });
-        try_load_attribute<TINYGLTF_TYPE_VEC3, TINYGLTF_COMPONENT_TYPE_FLOAT>(
+        try_load_attribute<fastgltf::AccessorType::Vec3, fastgltf::ComponentType::Float, fastgltf::math::fvec3>(
             "NORMAL", primitive,
-            [&primitiveData](uint32_t i, const uint8_t *p) {
-                primitiveData.vertices[i].normal = *reinterpret_cast<const glm::vec3 *>(p);
+            [&primitiveData](fastgltf::math::fvec3 p, size_t i) {
+                primitiveData.vertices[i].normal = {p[0], p[1], p[2]};
             });
-        try_load_attribute<TINYGLTF_TYPE_VEC4, TINYGLTF_COMPONENT_TYPE_FLOAT>(
+        try_load_attribute<fastgltf::AccessorType::Vec4, fastgltf::ComponentType::Float, fastgltf::math::fvec4>(
             "TANGENT", primitive,
-            [&primitiveData](uint32_t i, const uint8_t *p) {
-                primitiveData.vertices[i].tangent = *reinterpret_cast<const glm::vec4 *>(p);
+            [&primitiveData](fastgltf::math::fvec4 p, size_t i) {
+                primitiveData.vertices[i].tangent = {p[0], p[1], p[2], p[3]};
             });
-        try_load_attribute<TINYGLTF_TYPE_VEC2, TINYGLTF_COMPONENT_TYPE_FLOAT>(
+        try_load_attribute<fastgltf::AccessorType::Vec2, fastgltf::ComponentType::Float, fastgltf::math::fvec2>(
             "TEXCOORD_0", primitive,
-            [&primitiveData](uint32_t i, const uint8_t *p) {
-                primitiveData.vertices[i].texCoord = *reinterpret_cast<const glm::vec2 *>(p);
+            [&primitiveData](fastgltf::math::fvec2 p, size_t i) {
+                primitiveData.vertices[i].texCoord = {p[0], p[1]};
             });
-        try_load_attribute<TINYGLTF_TYPE_VEC3, TINYGLTF_COMPONENT_TYPE_FLOAT>(
+        try_load_attribute<fastgltf::AccessorType::Vec3, fastgltf::ComponentType::Float, fastgltf::math::fvec3>(
             "COLOR_0", primitive,
-            [&primitiveData](uint32_t i, const uint8_t *p) {
-                primitiveData.vertices[i].color = glm::vec4(*reinterpret_cast<const glm::vec3 *>(p), 1.0f);
+            [&primitiveData](fastgltf::math::fvec3 p, size_t i) {
+                primitiveData.vertices[i].color = {p[0], p[1], p[2], 1.0f};
             });
-        try_load_attribute<TINYGLTF_TYPE_VEC4, TINYGLTF_COMPONENT_TYPE_FLOAT>(
+        try_load_attribute<fastgltf::AccessorType::Vec4, fastgltf::ComponentType::Float, fastgltf::math::fvec4>(
             "COLOR_0", primitive,
-            [&primitiveData](uint32_t i, const uint8_t *p) {
-                primitiveData.vertices[i].color = *reinterpret_cast<const glm::vec4 *>(p);
+            [&primitiveData](fastgltf::math::fvec4 p, size_t i) {
+                primitiveData.vertices[i].color = {p[0], p[1], p[2], p[3]};
             });
-        try_load_attribute<TINYGLTF_TYPE_VEC4, TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE>(
+        try_load_attribute<fastgltf::AccessorType::Vec4, fastgltf::ComponentType::UnsignedByte, fastgltf::math::u8vec4>(
             "JOINTS_0", primitive,
-            [&primitiveData](uint32_t i, const uint8_t *p) {
-                primitiveData.vertices[i].joint = *reinterpret_cast<const glm::u8vec4 *>(p);
+            [&primitiveData](fastgltf::math::u8vec4 p, size_t i) {
+                primitiveData.vertices[i].joint = {p[0], p[1], p[2], p[3]};
             });
-        try_load_attribute<TINYGLTF_TYPE_VEC4, TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT>(
+        try_load_attribute<fastgltf::AccessorType::Vec4, fastgltf::ComponentType::UnsignedShort, fastgltf::math::u16vec4>(
             "JOINTS_0", primitive,
-            [&primitiveData](uint32_t i, const uint8_t *p) {
-                primitiveData.vertices[i].joint = *reinterpret_cast<const glm::u16vec4 *>(p);
+            [&primitiveData](fastgltf::math::u16vec4 p, size_t i) {
+                primitiveData.vertices[i].joint = {p[0], p[1], p[2], p[3]};
             });
-        try_load_attribute<TINYGLTF_TYPE_VEC4, TINYGLTF_COMPONENT_TYPE_FLOAT>(
+        try_load_attribute<fastgltf::AccessorType::Vec4, fastgltf::ComponentType::Float, fastgltf::math::fvec4>(
             "WEIGHTS_0", primitive,
-            [&primitiveData](uint32_t i, const uint8_t *p) {
-                primitiveData.vertices[i].weight = *reinterpret_cast<const glm::vec4 *>(p);
+            [&primitiveData](fastgltf::math::fvec4 p, size_t i) {
+                primitiveData.vertices[i].weight = {p[0], p[1], p[2], p[3]};
             });
 
         return primitiveData;
     }
 
-    void load_node(pl::Mesh &meshData, const tinygltf::Node &node) {
+    void load_node(pl::Mesh &meshData, const fastgltf::Node &node) {
+        auto trs = std::get<fastgltf::TRS>(node.transform);
+
         // transform
         pl::Transform transform;
-        if (node.translation.size() == 3)
-            transform.translation = glm::vec3{node.translation[0], node.translation[1], node.translation[2]};
-        else
-            transform.translation = glm::vec3(0, 0, 0);
-
-        if (node.rotation.size() == 4)
-            transform.rotation = glm::quat{static_cast<float>(node.rotation[0]), static_cast<float>(node.rotation[1]), static_cast<float>(node.rotation[2]), static_cast<float>(node.rotation[3])};
-        else
-            transform.rotation = glm::quat(0, 0, 0, 1);
-
-        if (node.scale.size() == 3)
-            transform.scale = glm::vec3{node.scale[0], node.scale[1], node.scale[2]};
-        else
-            transform.translation = glm::vec3(1, 1, 1);
+        transform.translation = glm::vec3{trs.translation[0], trs.translation[1], trs.translation[2]};
+        transform.rotation = glm::quat{trs.rotation[0], trs.rotation[1], trs.rotation[2], trs.rotation[3]};
+        transform.scale = glm::vec3{trs.scale[0], trs.scale[1], trs.scale[2]};
 
         for (const auto childNodeIndex : node.children) {
             load_node(meshData, model.nodes[childNodeIndex]);
         }
 
-        if (node.mesh >= 0) {
-            const auto &mesh = model.meshes[node.mesh];
+        if (node.meshIndex.has_value()) {
+            const auto &mesh = model.meshes[node.meshIndex.value()];
             for (const auto &primitive : mesh.primitives) {
                 const auto primitiveData = load_primitive(primitive);
 
@@ -171,55 +150,85 @@ class ModelLoader {
         }
     }
 
-    std::optional<pl::TextureRaw> load_texture(const int index) {
-        if(index < 0)
-            return std::nullopt;
-
-        const auto &tex = model.textures[index];
-
+    std::optional<pl::TextureRaw> load_texture(const fastgltf::Texture &tex) {
         TextureRaw rawData;
-        switch (model.samplers[tex.sampler].magFilter) {
-        case TINYGLTF_TEXTURE_FILTER_NEAREST:
-            rawData.magFilter = pl::FilterType::Nearest;
-            break;
-        case TINYGLTF_TEXTURE_FILTER_LINEAR:
+        if (tex.samplerIndex)
             rawData.magFilter = pl::FilterType::Linear;
-            break;
-        default:
-            rawData.magFilter = pl::FilterType::Linear;
-            break;
-        }
-        switch (model.samplers[tex.sampler].minFilter) {
-        case TINYGLTF_TEXTURE_FILTER_NEAREST:
-            rawData.minFilter = pl::FilterType::Nearest;
-            break;
-        case TINYGLTF_TEXTURE_FILTER_LINEAR:
+        else
+            switch (model.samplers[tex.samplerIndex.value()].magFilter.value_or(fastgltf::Filter::Linear)) {
+            case fastgltf::Filter::Nearest:
+                rawData.magFilter = pl::FilterType::Nearest;
+                break;
+            case fastgltf::Filter::Linear:
+                rawData.magFilter = pl::FilterType::Linear;
+                break;
+            default:
+                rawData.magFilter = pl::FilterType::Linear;
+                break;
+            }
+
+        if (tex.samplerIndex)
             rawData.minFilter = pl::FilterType::Linear;
-            break;
-        default:
-            rawData.minFilter = pl::FilterType::Linear;
-            break;
-        }
-        const auto& image = model.images[tex.source];
-        rawData.width = image.width;
-        rawData.height = image.height;
-        rawData.data = image.image;
-        rawData.bits = image.bits;
+        else
+            switch (model.samplers[tex.samplerIndex.value()].minFilter.value_or(fastgltf::Filter::Linear)) {
+            case fastgltf::Filter::Nearest:
+                rawData.minFilter = pl::FilterType::Nearest;
+                break;
+            case fastgltf::Filter::Linear:
+                rawData.minFilter = pl::FilterType::Linear;
+                break;
+            default:
+                rawData.minFilter = pl::FilterType::Linear;
+                break;
+            }
+        const auto &image = model.images[tex.imageIndex.value()];
+
+        std::visit(
+            fastgltf::visitor{
+                [&](const fastgltf::sources::BufferView &view) {
+                    auto &bufferView = model.bufferViews[view.bufferViewIndex];
+                    auto &buffer = model.buffers[bufferView.bufferIndex];
+                    std::visit(
+                        fastgltf::visitor{
+                            [&](fastgltf::sources::Array &vector) {
+                                int w, h, ch;
+                                auto data = stbi_load_from_memory(
+                                    reinterpret_cast<const stbi_uc *>(vector.bytes.data() + bufferView.byteOffset),
+                                    bufferView.byteLength,
+                                    &w, &h, &ch, STBI_rgb_alpha);
+                                rawData.width = w;
+                                rawData.height = h;
+                                rawData.data.resize(w * h * 4);
+                                std::memcpy(rawData.data.data(), data, rawData.data.size());
+                                rawData.bits = 8;
+
+                                stbi_image_free(data);
+                            },
+                            [](auto &arg) { throw std::runtime_error("unsupported model structure"); },
+                        },
+                        buffer.data);
+                },
+                [](auto &arg) { throw std::runtime_error("unsupported model structure"); },
+            },
+            image.data);
         return rawData;
     }
 
-    pl::Material *load_material(const tinygltf::Material &material) {
+    pl::Material *load_material(const fastgltf::Material &material) {
         pl::Material materialData;
 
-        if (material.pbrMetallicRoughness.baseColorFactor.size() == 4)
-            materialData.baseColorFactor = to_vec4(material.pbrMetallicRoughness.baseColorFactor);
-        materialData.metallicFactor = material.pbrMetallicRoughness.metallicFactor;
-        materialData.roughnessFactor = material.pbrMetallicRoughness.roughnessFactor;
+        materialData.baseColorFactor = to_vec4(material.pbrData.baseColorFactor);
+        materialData.metallicFactor = material.pbrData.metallicFactor;
+        materialData.roughnessFactor = material.pbrData.roughnessFactor;
 
-        materialData.baseColorTextureRaw = load_texture(material.pbrMetallicRoughness.baseColorTexture.index);
-        materialData.normalTextureRaw = load_texture(material.normalTexture.index);
-        materialData.emissiveTextureRaw = load_texture(material.emissiveTexture.index);
-        materialData.occlusionTextureRaw = load_texture(material.occlusionTexture.index);
+        if (material.pbrData.baseColorTexture.has_value())
+            materialData.baseColorTextureRaw = load_texture(model.textures[material.pbrData.baseColorTexture->textureIndex]);
+        if (material.normalTexture.has_value())
+            materialData.normalTextureRaw = load_texture(model.textures[material.normalTexture->textureIndex]);
+        if (material.emissiveTexture.has_value())
+            materialData.emissiveTextureRaw = load_texture(model.textures[material.emissiveTexture->textureIndex]);
+        if (material.occlusionTexture.has_value())
+            materialData.occlusionTextureRaw = load_texture(model.textures[material.occlusionTexture->textureIndex]);
 
         db.materials.emplace_back(std::move(materialData));
         return &db.materials.back();
@@ -229,11 +238,25 @@ class ModelLoader {
     ModelLoader(ModelDataBase &db, std::filesystem::path file_path) : db{db} {
         pl::Mesh mesh;
 
-        tinygltf::TinyGLTF loader;
-        std::string err, warn;
-        if (!loader.LoadBinaryFromFile(&model, &err, &warn, file_path.string())) {
-            throw std::runtime_error(std::string("gltf load error: ") + err);
+        auto time_s = std::chrono::system_clock::now();
+
+        std::cout << (std::chrono::system_clock::now() - time_s) << std::endl;
+
+        auto gltfFile = fastgltf::GltfFileStream(file_path);
+        if (!gltfFile.isOpen()) {
+            throw std::runtime_error("Failed to open glTF file: " + file_path.string());
         }
+
+        std::cout << (std::chrono::system_clock::now() - time_s) << std::endl;
+
+        fastgltf::Parser parser;
+        auto asset = parser.loadGltfBinary(gltfFile, "");
+        if (asset.error() != fastgltf::Error::None) {
+            throw std::runtime_error("Failed to load glTF: " + std::string(fastgltf::getErrorMessage(asset.error())));
+        }
+        model = std::move(asset.get());
+
+        std::cout << (std::chrono::system_clock::now() - time_s) << std::endl;
 
         pl::ModelData modelDat;
         p_materials.resize(model.materials.size());
@@ -243,14 +266,23 @@ class ModelLoader {
             i++;
         }
 
-        const auto &defaultScene = model.scenes[model.defaultScene >= 0 ? model.defaultScene : 0];
-        for (const auto nodeIndex : defaultScene.nodes) {
+        std::cout << (std::chrono::system_clock::now() - time_s) << std::endl;
+
+        const auto &defaultScene = model.scenes[model.defaultScene.value_or(0)];
+        for (const auto nodeIndex : defaultScene.nodeIndices) {
             load_node(mesh, model.nodes[nodeIndex]);
         }
 
+        std::cout << (std::chrono::system_clock::now() - time_s) << std::endl;
+
         modelDat.meshes.push_back(mesh);
 
+        std::cout << (std::chrono::system_clock::now() - time_s) << std::endl;
+
         db.models.emplace_front(std::move(modelDat));
+
+        std::cout << (std::chrono::system_clock::now() - time_s) << std::endl;
+
         p_model = &db.models.front();
     }
 

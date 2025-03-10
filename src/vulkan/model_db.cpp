@@ -191,18 +191,24 @@ class ModelLoader {
                     std::visit(
                         fastgltf::visitor{
                             [&](fastgltf::sources::Array &vector) {
+                                auto time_s = std::chrono::system_clock::now();
                                 int w, h, ch;
                                 auto data = stbi_load_from_memory(
                                     reinterpret_cast<const stbi_uc *>(vector.bytes.data() + bufferView.byteOffset),
                                     bufferView.byteLength,
                                     &w, &h, &ch, STBI_rgb_alpha);
+
+                                // std::cout << 'a' << (std::chrono::system_clock::now() - time_s) << std::endl;
                                 rawData.width = w;
                                 rawData.height = h;
                                 rawData.data.resize(w * h * 4);
                                 std::memcpy(rawData.data.data(), data, rawData.data.size());
                                 rawData.bits = 8;
 
+                                // std::cout << 'b' << (std::chrono::system_clock::now() - time_s) << std::endl;
                                 stbi_image_free(data);
+
+                                // std::cout << 'c' << (std::chrono::system_clock::now() - time_s) << std::endl;
                             },
                             [](auto &arg) { throw std::runtime_error("unsupported model structure"); },
                         },
@@ -237,17 +243,12 @@ class ModelLoader {
   public:
     ModelLoader(ModelDataBase &db, std::filesystem::path file_path) : db{db} {
         pl::Mesh mesh;
-
         auto time_s = std::chrono::system_clock::now();
-
-        std::cout << (std::chrono::system_clock::now() - time_s) << std::endl;
 
         auto gltfFile = fastgltf::GltfFileStream(file_path);
         if (!gltfFile.isOpen()) {
             throw std::runtime_error("Failed to open glTF file: " + file_path.string());
         }
-
-        std::cout << (std::chrono::system_clock::now() - time_s) << std::endl;
 
         fastgltf::Parser parser;
         auto asset = parser.loadGltfBinary(gltfFile, "");
@@ -256,9 +257,8 @@ class ModelLoader {
         }
         model = std::move(asset.get());
 
-        std::cout << (std::chrono::system_clock::now() - time_s) << std::endl;
-
         pl::ModelData modelDat;
+
         p_materials.resize(model.materials.size());
         for (int i = 0; const auto &material : model.materials) {
             p_materials[i] = load_material(material);
@@ -266,19 +266,11 @@ class ModelLoader {
             i++;
         }
 
-        std::cout << (std::chrono::system_clock::now() - time_s) << std::endl;
-
         const auto &defaultScene = model.scenes[model.defaultScene.value_or(0)];
         for (const auto nodeIndex : defaultScene.nodeIndices) {
             load_node(mesh, model.nodes[nodeIndex]);
         }
-
-        std::cout << (std::chrono::system_clock::now() - time_s) << std::endl;
-
         modelDat.meshes.push_back(mesh);
-
-        std::cout << (std::chrono::system_clock::now() - time_s) << std::endl;
-
         db.models.emplace_front(std::move(modelDat));
 
         std::cout << (std::chrono::system_clock::now() - time_s) << std::endl;

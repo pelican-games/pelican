@@ -21,10 +21,10 @@
       "name": "bullet3"
     },
     {
-      "name": "tinygltf"
+      "name": "fastgltf"
     },
     {
-      "name": "fastgltf"
+      "name": "stb"
     },
     {
       "name": "libpng"

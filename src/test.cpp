@@ -5,7 +5,6 @@
 #include <thread>
 #include <GLFW/glfw3.h>
 #include <filesystem>
-#include "tiny_gltf.h"
 #include <btBulletDynamicsCommon.h>
 using namespace pl;
 constexpr unsigned int WIDTH = 800, HEIGHT = 1200;

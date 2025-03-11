@@ -60,6 +60,10 @@ target_include_directories(pelican PRIVATE ${TINYGLTF_INCLUDE_DIRS})
 find_package(fastgltf CONFIG REQUIRED)
 target_link_libraries(pelican PRIVATE fastgltf::fastgltf)
 
+#libpng
+find_package(PNG REQUIRED)
+target_link_libraries(pelican PRIVATE PNG::PNG)
+
 add_subdirectory(example)
 
 ## Bullet Physics

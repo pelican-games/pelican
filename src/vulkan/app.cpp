@@ -30,14 +30,18 @@ VulkanApp::VulkanApp(GLFWwindow *window, unsigned int screenWidth, unsigned int 
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.apiVersion = VK_API_VERSION_1_3;
 
-    auto requiredLayers = {"VK_LAYER_KHRONOS_validation"};
+    std::vector<const char*> requiredLayers;
+#ifdef _DEBUG
+    std::cout << "Vulkan Validation Layer Enabled" << std::endl;
+    requiredLayers.push_back("VK_LAYER_KHRONOS_validation");
+#endif
     uint32_t instanceExtensionCount = 0;
     const char **requiredExtensions = glfwGetRequiredInstanceExtensions(&instanceExtensionCount);
     vk::InstanceCreateInfo instCreateInfo(
         {},
         &appInfo,
         requiredLayers.size(),
-        requiredLayers.begin(),
+        requiredLayers.data(),
         instanceExtensionCount,
         requiredExtensions);
 

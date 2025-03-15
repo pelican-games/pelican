@@ -979,8 +979,8 @@ void VulkanApp::setCamera(glm::vec3 pos, glm::vec3 dir, glm::vec3 up) {
     vpMatrix.view = glm::lookAt(pos, pos + dir, up);
 }
 
-void VulkanApp::setProjection(float horizontalAngle) {
-    vpMatrix.projection = glm::perspective(glm::radians(horizontalAngle), static_cast<float>(viewport3d.width) / static_cast<float>(viewport3d.height), 0.1f, 100.0f);
+void VulkanApp::setProjection(float horizontalAngle, float near, float far) {
+    vpMatrix.projection = glm::perspective(glm::radians(horizontalAngle), static_cast<float>(viewport3d.width) / static_cast<float>(viewport3d.height), near, far);
 }
 
 void VulkanApp::drawModel(const Model &model, glm::mat4x4 modelMatrix) {

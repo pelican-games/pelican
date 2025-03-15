@@ -23,7 +23,7 @@ class Renderer {
   public:
     virtual void drawModel(const Model &model, glm::mat4x4 modelMatrix) = 0;
     virtual void setCamera(glm::vec3 pos, glm::vec3 dir, glm::vec3 up) = 0;
-    virtual void setProjection(float horizontalAngle) = 0;
+    virtual void setProjection(float horizontalAngle, float near = 0.1f, float far = 100.0f) = 0;
     virtual pl::Model loadModel(std::filesystem::path file_path, uint32_t max_object_num = 128) = 0;
     //virtual void loadObject(std::filesystem::path file_path) = 0;
 

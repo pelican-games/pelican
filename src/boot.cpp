@@ -69,13 +69,13 @@ namespace pl {
     }
 
     // 1回だけ呼ばれる
-    System::System(unsigned int Windowwidth, unsigned int Windowheight) {
+    System::System(unsigned int Windowwidth, unsigned int Windowheight, bool fullScreen) {
         if (!glfwInit()) {
             throw std::runtime_error("Failed to initialize GLFW");
         }
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        window = glfwCreateWindow(Windowwidth, Windowheight, "Pelican Vulkan Window", nullptr, nullptr);
+        window = glfwCreateWindow(Windowwidth, Windowheight, "Pelican Vulkan Window", fullScreen ? glfwGetPrimaryMonitor() : nullptr, nullptr);
         if (!window) {
             glfwTerminate();
             throw std::runtime_error("Failed to create GLFW window");

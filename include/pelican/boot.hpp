@@ -15,7 +15,7 @@ class System {
 	uint32_t frame_count;
 
 public:
-	System(unsigned int Windowheight,unsigned int Windowwidth);
+	System(unsigned int Windowheight,unsigned int Windowwidth, bool fullScreen = false);
 	~System();
 
 	bool frameUpdate();

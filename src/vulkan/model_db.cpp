@@ -228,6 +228,8 @@ class ModelLoader {
 
         if (material.pbrData.baseColorTexture.has_value())
             materialData.baseColorTextureRaw = load_texture(model.textures[material.pbrData.baseColorTexture->textureIndex]);
+        if (material.pbrData.metallicRoughnessTexture.has_value())
+            materialData.metallicRoughnessTextureRaw = load_texture(model.textures[material.pbrData.metallicRoughnessTexture->textureIndex]);
         if (material.normalTexture.has_value())
             materialData.normalTextureRaw = load_texture(model.textures[material.normalTexture->textureIndex]);
         if (material.emissiveTexture.has_value())

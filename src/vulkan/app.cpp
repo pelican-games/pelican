@@ -371,7 +371,7 @@ vk::ImageMemoryBarrier VulkanApp::createImageMemoryBarrier(vk::Image image, vk::
 }
 
 // テクスチャの転送
-void VulkanApp::copyTexture(vk::CommandBuffer commandBuffer, pl::Material &material, vk::Image image, vk::Buffer stagingBuffer, vk::DeviceSize offset) {
+void VulkanApp::copyTexture(vk::CommandBuffer commandBuffer, pl::Material &material, vk::Image image, vk::Buffer stagingBuffer, vk::DeviceSize offset, uint32_t width, uint32_t height) {
     vk::ImageMemoryBarrier imageMemoryBarrier = createImageMemoryBarrier(image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, {}, vk::AccessFlagBits::eTransferWrite);
 
     commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTransfer, {}, {}, {}, imageMemoryBarrier);
@@ -382,7 +382,7 @@ void VulkanApp::copyTexture(vk::CommandBuffer commandBuffer, pl::Material &mater
         0,
         vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, 0, 0, 1),
         vk::Offset3D(0, 0, 0),
-        vk::Extent3D(material.baseColorTextureRaw->width, material.baseColorTextureRaw->height, 1));
+        vk::Extent3D(width, height, 1));
     commandBuffer.copyBufferToImage(stagingBuffer, image, vk::ImageLayout::eTransferDstOptimal, 1, &bufferImageCopy);
 
     vk::ImageMemoryBarrier imageMemoryBarrier2 = createImageMemoryBarrier(image, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal, vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead);
@@ -396,6 +396,12 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
 
     for (auto p_material : model.used_materials) {
         auto &material = *p_material;
+
+        std::cout << "Color: " << material.baseColorTextureRaw.has_value() << std::endl;
+        std::cout << "Metalic: " << material.metallicRoughnessTextureRaw.has_value() << std::endl;
+        std::cout << "Normal: " << material.normalTextureRaw.has_value() << std::endl;
+        std::cout << "Occlusion: " << material.occlusionTextureRaw.has_value() << std::endl;
+        std::cout << "Emissive: " << material.emissiveTextureRaw.has_value() << std::endl;
 
         if (material.baseColorTextureRaw.has_value()) {
             textureData.insert(textureData.end(), material.baseColorTextureRaw->data.begin(), material.baseColorTextureRaw->data.end());
@@ -603,23 +609,23 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
         vk::DeviceSize offset = 0;
 
         if (material.baseColorTextureRaw.has_value()) {
-            copyTexture(commandBuffers.second[0].get(), material, material.baseColorTexture.first.get(), stagingBuffer.first.get(), offset);
+            copyTexture(commandBuffers.second[0].get(), material, material.baseColorTexture.first.get(), stagingBuffer.first.get(), offset, material.baseColorTextureRaw->width, material.baseColorTextureRaw->height);
             offset += material.baseColorTextureRaw->data.size() * sizeof(uint8_t);
         }
         if (material.metallicRoughnessTextureRaw.has_value()) {
-            copyTexture(commandBuffers.second[0].get(), material, material.metallicRoughnessTexture.first.get(), stagingBuffer.first.get(), offset);
+            copyTexture(commandBuffers.second[0].get(), material, material.metallicRoughnessTexture.first.get(), stagingBuffer.first.get(), offset, material.metallicRoughnessTextureRaw->width, material.metallicRoughnessTextureRaw->height);
             offset += material.metallicRoughnessTextureRaw->data.size() * sizeof(uint8_t);
         }
         if (material.normalTextureRaw.has_value()) {
-            copyTexture(commandBuffers.second[0].get(), material, material.normalTexture.first.get(), stagingBuffer.first.get(), offset);
+            copyTexture(commandBuffers.second[0].get(), material, material.normalTexture.first.get(), stagingBuffer.first.get(), offset, material.normalTextureRaw->width, material.normalTextureRaw->height);
             offset += material.normalTextureRaw->data.size() * sizeof(uint8_t);
         }
         if (material.occlusionTextureRaw.has_value()) {
-            copyTexture(commandBuffers.second[0].get(), material, material.occlusionTexture.first.get(), stagingBuffer.first.get(), offset);
+            copyTexture(commandBuffers.second[0].get(), material, material.occlusionTexture.first.get(), stagingBuffer.first.get(), offset, material.occlusionTextureRaw->width, material.occlusionTextureRaw->height);
             offset += material.occlusionTextureRaw->data.size() * sizeof(uint8_t);
         }
         if (material.emissiveTextureRaw.has_value()) {
-            copyTexture(commandBuffers.second[0].get(), material, material.emissiveTexture.first.get(), stagingBuffer.first.get(), offset);
+            copyTexture(commandBuffers.second[0].get(), material, material.emissiveTexture.first.get(), stagingBuffer.first.get(), offset, material.emissiveTextureRaw->width, material.emissiveTextureRaw->height);
             offset += material.emissiveTextureRaw->data.size() * sizeof(uint8_t);
         }
 

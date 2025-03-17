@@ -2,7 +2,7 @@
 #include <iostream>
 int main() {
     try {
-        pl::System sys(800, 600);
+        pl::System sys(1920, 1080);
 
         pl::Renderer& renderer = sys.getDefaultRenderer();
         std::cout << "Renderer loaded" << std::endl;
@@ -18,7 +18,7 @@ int main() {
 
         float theta = 0;
 
-        renderer.setViewport(0, 0, 400, 300);
+        renderer.setViewport(0, 0, 960, 540);
 
         while(sys.frameUpdate()) {
             theta += 0.001f;
@@ -26,7 +26,8 @@ int main() {
             renderer.setCamera(glm::vec3(cos(theta) * 10.0f, sin(theta) * 10.0f, 0.0), glm::vec3(-cos(theta), -sin(theta), 0.0), glm::vec3(0.0, 0.0, 1.0));
             renderer.setProjection(45.0);
             //renderer.drawModel(test_model, glm::identity<glm::mat4>());
-            renderer.drawModel(test_model2, glm::identity<glm::mat4>());
+            glm::mat4 model_matrix = glm::scale(glm::identity<glm::mat4>(), glm::vec3(3)); 
+            renderer.drawModel(test_model2, model_matrix);
             //renderer.drawModel(test_model3, glm::identity<glm::mat4>());
             renderer.drawUIImage(test_image, 0, 0, 0, 0, 250, 200, 1.0, 1.0);
         }

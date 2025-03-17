@@ -19,10 +19,34 @@ layout(push_constant) uniform PushConstant {
     mat4 proj;
 } push;
 
-layout(location = 0) out vec2 uv;
+layout(location = 0) out vec2 fragmentUV;
+layout(location = 1) out vec3 worldPos;
+layout(location = 2) out vec3 worldNormal;
+layout(location = 3) out vec3 worldTangent;
+layout(location = 4) out vec3 worldBitangent;
 
 void main() {
+
     mat4 instanceMatrix = mat4(inInstanceMatrix0, inInstanceMatrix1, inInstanceMatrix2, inInstanceMatrix3);
     gl_Position = push.proj * push.view * instanceMatrix * vec4(inPos, 1.0);
-    uv = inUV;
+
+    // 法線をワールド空間に変換
+    mat3 normalMatrix = transpose(inverse(mat3(instanceMatrix)));
+    worldNormal = normalize(normalMatrix * inNormal);
+
+    if(length(inTangent) == 0.0) {
+        // 法線から接線を計算
+        vec3 c1 = cross(worldNormal, vec3(0.0, 0.0, 1.0));
+        vec3 c2 = cross(worldNormal, vec3(0.0, 1.0, 0.0));
+        worldTangent = normalize(length(c1) > length(c2) ? c1 : c2);
+        worldBitangent = normalize(cross(worldNormal, worldTangent));
+    }
+    else {
+        worldTangent = normalize(normalMatrix * inTangent.xyz);
+        worldBitangent = normalize(cross(worldNormal, worldTangent) * inTangent.w);
+    }
+    
+    
+    
+    fragmentUV = inUV;
 }

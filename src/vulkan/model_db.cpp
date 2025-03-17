@@ -90,7 +90,7 @@ class ModelLoader {
         try_load_attribute<fastgltf::AccessorType::Vec4, fastgltf::ComponentType::Float, fastgltf::math::fvec4>(
             "TANGENT", primitive,
             [&primitiveData](fastgltf::math::fvec4 p, size_t i) {
-                primitiveData.vertices[i].tangent = {p[0], p[1], p[2], p[3]};
+                primitiveData.vertices[i].tangent = {p.x(), p.y(), p.z(), p.w()};
             });
         try_load_attribute<fastgltf::AccessorType::Vec2, fastgltf::ComponentType::Float, fastgltf::math::fvec2>(
             "TEXCOORD_0", primitive,

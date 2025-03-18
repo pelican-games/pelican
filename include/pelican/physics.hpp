@@ -48,6 +48,8 @@ namespace pl {
     bool isObjectInDirection(btDiscreteDynamicsWorld* dynamicsWorld, const btVector3& origin, const btVector3& direction, float distance);
 
     std::vector<int> ballIndexesInDomain(const btVector3& leftBoundaryPoint, const btVector3& rightBoundaryPoint, const std::vector<std::unique_ptr<pl::MagneticBall>>& balls);
+    
+    size_t countBallsInDomain(const btVector3& rectCenter, const btVector3& rectScale, const btQuaternion rectRotation, const std::vector<std::unique_ptr<pl::MagneticBall>>& balls);
 
     void calculateMagneticForce(std::vector<std::unique_ptr<pl::MagneticBall>>& balls);
 

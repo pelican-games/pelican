@@ -90,7 +90,7 @@ class ModelLoader {
         try_load_attribute<fastgltf::AccessorType::Vec4, fastgltf::ComponentType::Float, fastgltf::math::fvec4>(
             "TANGENT", primitive,
             [&primitiveData](fastgltf::math::fvec4 p, size_t i) {
-                primitiveData.vertices[i].tangent = {p[0], p[1], p[2], p[3]};
+                primitiveData.vertices[i].tangent = {p.x(), p.y(), p.z(), p.w()};
             });
         try_load_attribute<fastgltf::AccessorType::Vec2, fastgltf::ComponentType::Float, fastgltf::math::fvec2>(
             "TEXCOORD_0", primitive,
@@ -228,6 +228,8 @@ class ModelLoader {
 
         if (material.pbrData.baseColorTexture.has_value())
             materialData.baseColorTextureRaw = load_texture(model.textures[material.pbrData.baseColorTexture->textureIndex]);
+        if (material.pbrData.metallicRoughnessTexture.has_value())
+            materialData.metallicRoughnessTextureRaw = load_texture(model.textures[material.pbrData.metallicRoughnessTexture->textureIndex]);
         if (material.normalTexture.has_value())
             materialData.normalTextureRaw = load_texture(model.textures[material.normalTexture->textureIndex]);
         if (material.emissiveTexture.has_value())

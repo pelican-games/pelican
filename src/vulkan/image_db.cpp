@@ -321,4 +321,8 @@ pl::UIImageData *UIImageDataBase::load_image(std::filesystem::path file_path) {
     return &uiimages.front();
 }
 
+void IBLData::loadIBL(std::filesystem::path file_path) {
+ 
+}
+
 } // namespace pl

@@ -117,7 +117,7 @@ class VulkanApp : public pl::Renderer {
         vk::ImageMemoryBarrier createImageMemoryBarrier(vk::Image image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout, vk::AccessFlags srcAccessMask, vk::AccessFlags dstAccessMask, vk::ImageAspectFlags aspectMask = vk::ImageAspectFlagBits::eColor);
         
         //レンダリング用関数
-        void copyTexture(vk::CommandBuffer commandBuffer, pl::Material& material, vk::Image image, vk::Buffer stagingBuffer, vk::DeviceSize offset);
+        void copyTexture(vk::CommandBuffer commandBuffer, pl::Material& material, vk::Image image, vk::Buffer stagingBuffer, vk::DeviceSize offset, uint32_t width, uint32_t height);
         void transferTexture(const pl::ModelData&);
         void copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height, vk::DeviceSize offset);
         void drawGBuffer(uint32_t objectIndex);  
@@ -137,6 +137,7 @@ class VulkanApp : public pl::Renderer {
 
         void drawUIImage(const UIImage &image, int x, int y, int texX, int texY, int texW, int texH, float scaleX, float scaleY);
         pl::UIImage loadUIImage(std::filesystem::path file_path);
+        void loadIBL(std::filesystem::path file_path);
 };
 
 }

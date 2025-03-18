@@ -1,6 +1,7 @@
 #include "image_db.hpp"
 #include <iostream>
 #include <stb_image.h>
+#include <fstream>
 
 namespace pl {
 
@@ -293,6 +294,11 @@ UIImageDataBase::UIImageDataBase(vk::Device device, vk::PhysicalDevice physDevic
 }
 
 pl::UIImageData *UIImageDataBase::load_image(std::filesystem::path file_path) {
+    if(!std::filesystem::exists(file_path)) {
+        std::ofstream err("error.txt");
+        err << file_path << " not found";
+    }
+
     int w, h, ch;
     auto pData = stbi_load(file_path.string().c_str(), &w, &h, &ch, STBI_rgb_alpha);
     size_t imgDataSize = 4 * w * h;

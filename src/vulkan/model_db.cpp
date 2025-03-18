@@ -243,6 +243,11 @@ class ModelLoader {
 
   public:
     ModelLoader(ModelDataBase &db, std::filesystem::path file_path) : db{db} {
+        if(!std::filesystem::exists(file_path)) {
+            std::ofstream err("error.txt");
+            err << file_path << " not found";
+        }
+
         pl::Mesh mesh;
         auto time_s = std::chrono::system_clock::now();
 

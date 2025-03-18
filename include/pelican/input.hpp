@@ -25,6 +25,9 @@ class Cursor {
     bool right_down() const;
     bool right_up() const;
     bool right_pressed() const;
+
+    double xscroll() const;
+    double yscroll() const;
 };
 
 } // namespace pl

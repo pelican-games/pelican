@@ -46,7 +46,7 @@ void main() {
         worldBitangent = normalize(cross(worldNormal, worldTangent) * inTangent.w);
     }
     
-    
+    worldPos = (instanceMatrix * vec4(inPos, 1.0)).xyz;
     
     fragmentUV = inUV;
 }

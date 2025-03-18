@@ -18,6 +18,11 @@ layout(set = 0, binding = 2) uniform sampler2D normalSampler;
 layout(set = 0, binding = 3) uniform sampler2D ambientSampler;
 layout(set = 0, binding = 4) uniform sampler2D emissiveSampler;
 
+// IBL関連
+layout(set = 0, binding = 5) uniform samplerCube irradianceMap;
+layout(set = 0, binding = 6) uniform samplerCube prefilteredMap;
+layout(set = 0, binding = 7) uniform sampler2D brdfLUT;
+
 struct PointLight {
     vec3 position;
     vec3 color;
@@ -26,7 +31,7 @@ struct PointLight {
 
 const PointLight pointLight = PointLight(
     vec3(5.0, 5.0, 5.0), // 光源位置
-    vec3(0.0078, 1.0, 0.7176), // 光源色
+    vec3(1.0, 1.0, 1.0), // 光源色
     100                  // 光源強度
 );
 
@@ -101,12 +106,6 @@ void main() {
         // glTF-PBRの標準に合わせて修正
     float metallic = specularColor.b;   // Rチャンネルに金属度（一般的なglTF仕様）
     float roughness = specularColor.g;  // Gチャンネルに粗さ（一般的なglTF仕様）
-    // 正しいメタリック値を青チャンネルで表示
-outColor = vec4(0, 0, metallic, 1.0);
-    
-    // 値の範囲確認用デバッグ（コメント解除して確認）
-    // outColor = vec4(vec3(metallic), 1.0);  // 金属度の可視化
-    // return;
 
     // 低すぎるとスペキュラーがほぼ見えないため、最小値を設定
     roughness = max(roughness, 0.01);
@@ -150,8 +149,16 @@ outColor = vec4(0, 0, metallic, 1.0);
     float NdotL = max(dot(N, L), 0.0);
     vec3 Lo = (kD * albedo / PI + specular) * radiance * NdotL;
     
-    // 環境光と金属度に基づく環境反射の模擬
-    vec3 ambient = vec3(0.01) * albedo * (1.0 - metallic) + vec3(0.2) * F0 * (1.0 - roughness);
+    // 環境光の詳細制御
+    float ambientIntensity = 0.0;   // 0.0 = 完全に黒い環境
+    float reflectionIntensity = 0.0; // 0.0 = 環境からの反射なし
+
+    // 拡散環境光
+    vec3 ambientDiffuse = vec3(ambientIntensity) * albedo * (1.0 - metallic);
+    // 反射環境光
+    vec3 ambientSpecular = vec3(reflectionIntensity) * F0 * (1.0 - roughness);
+    // 合成
+    vec3 ambient = ambientDiffuse + ambientSpecular;
     
     // エミッシブ
     vec3 emission = emissiveColor.rgb * emissiveColor.a;

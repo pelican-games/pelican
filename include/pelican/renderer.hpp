@@ -29,6 +29,7 @@ class Renderer {
 
     virtual void drawUIImage(const UIImage &image, int x, int y, int texX, int texY, int texW, int texH, float scaleX, float scaleY) = 0;
     virtual pl::UIImage loadUIImage(std::filesystem::path file_path) = 0;
+    virtual void loadIBL(std::filesystem::path file_path) = 0;
     virtual void drawFrame() = 0;
     virtual void setViewport(int x, int y, int w, int h) = 0;
     virtual ~Renderer() = default;

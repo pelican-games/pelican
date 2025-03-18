@@ -137,6 +137,7 @@ class VulkanApp : public pl::Renderer {
 
         void drawUIImage(const UIImage &image, int x, int y, int texX, int texY, int texW, int texH, float scaleX, float scaleY);
         pl::UIImage loadUIImage(std::filesystem::path file_path);
+        void loadIBL(std::filesystem::path file_path);
 };
 
 }

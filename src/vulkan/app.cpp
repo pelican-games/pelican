@@ -1007,6 +1007,10 @@ void VulkanApp::drawUIImage(const UIImage &image, int x, int y, int texX, int te
     uiImageDrawInfos.push_back({image.pDat, push});
 }
 
+void VulkanApp::loadIBL(std::filesystem::path file_path){
+    
+}
+
 void VulkanApp::setViewport(int x, int y, int w, int h) {
     viewport3d.x = x;
     viewport3d.y = y;

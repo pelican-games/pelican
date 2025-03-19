@@ -52,6 +52,7 @@ VulkanApp::VulkanApp(GLFWwindow *window, unsigned int screenWidth, unsigned int 
     vk::PhysicalDeviceFeatures deviceFeatures = {}; // DeviceFeaturesの設定
     deviceFeatures.geometryShader = VK_TRUE;
     deviceFeatures.samplerAnisotropy = VK_TRUE;
+    deviceFeatures.sampleRateShading = VK_TRUE;
 
     // 物理デバイスの選択
     physicalDevice = pickPhysicalDevice(deviceExtensions, deviceFeatures);
@@ -291,9 +292,16 @@ std::vector<vk::DeviceQueueCreateInfo> VulkanApp::findQueues(std::vector<float> 
 // イメージの作成
 std::pair<vk::UniqueImage, vk::UniqueDeviceMemory> VulkanApp::createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::SampleCountFlagBits samples) {
     
-    // ミップレベルの計算
-    uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
-    
+    // サンプル数に応じたミップレベルの計算
+    uint32_t mipLevels;
+    if (samples == vk::SampleCountFlagBits::e1) {
+        // 単一サンプル画像の場合はミップマップを計算
+        mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
+    } else {
+        // マルチサンプル画像の場合はミップレベルを1に固定
+        mipLevels = 1;
+    }
+
     vk::ImageCreateInfo imageCreateInfo(
         {},
         vk::ImageType::e2D,

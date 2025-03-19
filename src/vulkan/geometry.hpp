@@ -182,6 +182,8 @@ struct Object {
 struct VPMatrix {
     glm::mat4 view;
     glm::mat4 projection;
+    glm::vec4 lineColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+    float lineWidth = 0.0f;
 };
 
 }

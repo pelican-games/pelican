@@ -51,6 +51,8 @@ VulkanApp::VulkanApp(GLFWwindow *window, unsigned int screenWidth, unsigned int 
         VK_KHR_SWAPCHAIN_EXTENSION_NAME};
     vk::PhysicalDeviceFeatures deviceFeatures = {}; // DeviceFeaturesの設定
     deviceFeatures.geometryShader = VK_TRUE;
+    deviceFeatures.samplerAnisotropy = VK_TRUE;
+    deviceFeatures.sampleRateShading = VK_TRUE;
 
     // 物理デバイスの選択
     physicalDevice = pickPhysicalDevice(deviceExtensions, deviceFeatures);
@@ -126,11 +128,13 @@ VulkanApp::VulkanApp(GLFWwindow *window, unsigned int screenWidth, unsigned int 
 
     // シェーダーモジュールの作成
     vk::UniqueShaderModule vertShaderModule = createShaderModule("src/shaders/shader.vert.spv");
+    vk::UniqueShaderModule geomShaderModule = createShaderModule("src/shaders/shader.geom.spv");
     vk::UniqueShaderModule fragShaderModule = createShaderModule("src/shaders/shader.frag.spv");
 
     // パイプラインの作成
     std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = {
         vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eVertex, vertShaderModule.get(), "main"),
+        vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eGeometry, geomShaderModule.get(), "main"),
         vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eFragment, fragShaderModule.get(), "main")};
 
     pipelineBuilder = std::make_unique<PipelineBuilder>();
@@ -286,17 +290,28 @@ std::vector<vk::DeviceQueueCreateInfo> VulkanApp::findQueues(std::vector<float> 
 }
 
 // イメージの作成
-std::pair<vk::UniqueImage, vk::UniqueDeviceMemory> VulkanApp::createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage) {
+std::pair<vk::UniqueImage, vk::UniqueDeviceMemory> VulkanApp::createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::SampleCountFlagBits samples) {
+    
+    // サンプル数に応じたミップレベルの計算
+    uint32_t mipLevels;
+    if (samples == vk::SampleCountFlagBits::e1) {
+        // 単一サンプル画像の場合はミップマップを計算
+        mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
+    } else {
+        // マルチサンプル画像の場合はミップレベルを1に固定
+        mipLevels = 1;
+    }
+
     vk::ImageCreateInfo imageCreateInfo(
         {},
         vk::ImageType::e2D,
         format,
         vk::Extent3D(width, height, 1),
+        mipLevels,  // 1からミップレベル数に変更
         1,
-        1,
-        vk::SampleCountFlagBits::e1,
+        samples,
         tiling,
-        usage,
+        usage | vk::ImageUsageFlagBits::eTransferSrc, // ミップマップ生成に必要
         vk::SharingMode::eExclusive,
         0,
         nullptr,
@@ -316,13 +331,22 @@ std::pair<vk::UniqueImage, vk::UniqueDeviceMemory> VulkanApp::createImage(uint32
 }
 
 vk::UniqueImageView VulkanApp::createImageView(vk::Image image, vk::Format format, vk::ImageAspectFlags aspectFlags) {
+    // イメージからミップレベルを取得
+    vk::ImageSubresourceRange subresourceRange(
+        aspectFlags,
+        0,                                  // baseMipLevel
+        VK_REMAINING_MIP_LEVELS,            // levelCount - すべてのレベルを使用
+        0,                                  // baseArrayLayer
+        1                                   // layerCount
+    );
+    
     vk::ImageViewCreateInfo viewCreateInfo(
         {},
         image,
         vk::ImageViewType::e2D,
         format,
         vk::ComponentMapping(),
-        vk::ImageSubresourceRange(aspectFlags, 0, 1, 0, 1));
+        subresourceRange);
 
     return device->createImageViewUnique(viewCreateInfo);
 }
@@ -370,23 +394,117 @@ vk::ImageMemoryBarrier VulkanApp::createImageMemoryBarrier(vk::Image image, vk::
     return imageMemoryBarrier;
 }
 
+void VulkanApp::generateMipmaps(vk::CommandBuffer cmdBuffer, vk::Image image, 
+        int32_t texWidth, int32_t texHeight, uint32_t mipLevels) {
+    // ブリットでミップマップを生成
+    vk::ImageMemoryBarrier barrier;
+    barrier.image = image;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+    barrier.subresourceRange.levelCount = 1;
+
+    int32_t mipWidth = texWidth;
+    int32_t mipHeight = texHeight;
+
+    for (uint32_t i = 1; i < mipLevels; i++) {
+        barrier.subresourceRange.baseMipLevel = i - 1;
+        barrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+        barrier.newLayout = vk::ImageLayout::eTransferSrcOptimal;
+        barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+        barrier.dstAccessMask = vk::AccessFlagBits::eTransferRead;
+
+        cmdBuffer.pipelineBarrier(
+            vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, {},{}, {}, barrier
+        );
+
+        vk::ImageBlit blit;
+        blit.srcOffsets[0] = vk::Offset3D(0, 0, 0);
+        blit.srcOffsets[1] = vk::Offset3D(mipWidth, mipHeight, 1);
+        blit.srcSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+        blit.srcSubresource.mipLevel = i - 1;
+        blit.srcSubresource.baseArrayLayer = 0;
+        blit.srcSubresource.layerCount = 1;
+        blit.dstOffsets[0] = vk::Offset3D(0, 0, 0);
+        blit.dstOffsets[1] = vk::Offset3D(mipWidth > 1 ? mipWidth / 2 : 1, 
+                    mipHeight > 1 ? mipHeight / 2 : 1, 1);
+        blit.dstSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+        blit.dstSubresource.mipLevel = i;
+        blit.dstSubresource.baseArrayLayer = 0;
+        blit.dstSubresource.layerCount = 1;
+
+        cmdBuffer.blitImage(
+            image, vk::ImageLayout::eTransferSrcOptimal,
+            image, vk::ImageLayout::eTransferDstOptimal,
+            blit, vk::Filter::eLinear
+        );
+
+        barrier.oldLayout = vk::ImageLayout::eTransferSrcOptimal;
+        barrier.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        barrier.srcAccessMask = vk::AccessFlagBits::eTransferRead;
+        barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+
+        cmdBuffer.pipelineBarrier(
+            vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, {},
+            {}, {}, barrier
+        );
+
+        if (mipWidth > 1) mipWidth /= 2;
+        if (mipHeight > 1) mipHeight /= 2;
+    }
+
+    // 最後のミップレベルをシェーダー読み取り用に変更
+    barrier.subresourceRange.baseMipLevel = mipLevels - 1;
+    barrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+    barrier.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+    barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+    barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+
+    cmdBuffer.pipelineBarrier(
+    vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, {},
+    {}, {}, barrier);
+}
+
 // テクスチャの転送
 void VulkanApp::copyTexture(vk::CommandBuffer commandBuffer, pl::Material &material, vk::Image image, vk::Buffer stagingBuffer, vk::DeviceSize offset, uint32_t width, uint32_t height) {
-    vk::ImageMemoryBarrier imageMemoryBarrier = createImageMemoryBarrier(image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, {}, vk::AccessFlagBits::eTransferWrite);
+    // ミップレベルの計算
+    uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
+    
+    // イメージのレイアウト変更
+    vk::ImageMemoryBarrier imageMemoryBarrier = createImageMemoryBarrier(
+        image, 
+        vk::ImageLayout::eUndefined, 
+        vk::ImageLayout::eTransferDstOptimal, 
+        {}, 
+        vk::AccessFlagBits::eTransferWrite,
+        vk::ImageAspectFlagBits::eColor
+    );
+    
+    // バリアを全ミップレベルに適用
+    imageMemoryBarrier.subresourceRange.levelCount = mipLevels;
+    
+    commandBuffer.pipelineBarrier(
+        vk::PipelineStageFlagBits::eTopOfPipe, 
+        vk::PipelineStageFlagBits::eTransfer, 
+        {}, {}, {}, imageMemoryBarrier
+    );
 
-    commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTransfer, {}, {}, {}, imageMemoryBarrier);
-
+    // バッファからイメージへのコピー
     vk::BufferImageCopy bufferImageCopy(
-        offset,
-        0,
-        0,
+        offset, 0, 0,
         vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, 0, 0, 1),
         vk::Offset3D(0, 0, 0),
-        vk::Extent3D(width, height, 1));
-    commandBuffer.copyBufferToImage(stagingBuffer, image, vk::ImageLayout::eTransferDstOptimal, 1, &bufferImageCopy);
-
-    vk::ImageMemoryBarrier imageMemoryBarrier2 = createImageMemoryBarrier(image, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal, vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead);
-    commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, {}, {}, {}, imageMemoryBarrier2);
+        vk::Extent3D(width, height, 1)
+    );
+    commandBuffer.copyBufferToImage(
+        stagingBuffer, image, vk::ImageLayout::eTransferDstOptimal, 1, &bufferImageCopy
+    );
+    
+    // ミップマップの生成
+    generateMipmaps(commandBuffer, image, width, height, mipLevels);
+    
 }
 
 void VulkanApp::transferTexture(const pl::ModelData &model) {
@@ -403,9 +521,16 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
         std::cout << "Occlusion: " << material.occlusionTextureRaw.has_value() << std::endl;
         std::cout << "Emissive: " << material.emissiveTextureRaw.has_value() << std::endl;
 
+        // 物理デバイスプロパティを一度だけ取得（全テクスチャで共通利用）
+        vk::PhysicalDeviceProperties deviceProperties = physicalDevice.getProperties();
+        float maxAnisotropy = deviceProperties.limits.maxSamplerAnisotropy;
+
         if (material.baseColorTextureRaw.has_value()) {
             textureData.insert(textureData.end(), material.baseColorTextureRaw->data.begin(), material.baseColorTextureRaw->data.end());
-            // material.baseColorTextureRaw->data.clear();
+            // ミップレベルの計算を追加
+            uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(
+                std::max(material.baseColorTextureRaw->width, material.baseColorTextureRaw->height)))) + 1;
+
             if (material.baseColorTextureRaw->bits == 8) {
                 material.baseColorTexture = createImage(material.baseColorTextureRaw->width, material.baseColorTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
                 material.baseColorTextureView = createImageView(material.baseColorTexture.first.get(), vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor);
@@ -413,6 +538,7 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 material.baseColorTexture = createImage(material.baseColorTextureRaw->width, material.baseColorTextureRaw->height, vk::Format::eR16G16B16A16Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
                 material.baseColorTextureView = createImageView(material.baseColorTexture.first.get(), vk::Format::eR16G16B16A16Unorm, vk::ImageAspectFlagBits::eColor);
             }
+
             vk::SamplerCreateInfo samplerCreateInfo(
                 {},
                 material.baseColorTextureRaw->toVkFilter(material.baseColorTextureRaw->magFilter),
@@ -421,13 +547,13 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,
-                0.0f,
-                VK_FALSE,
-                16,
+                0.0f,                         // mipLodBias
+                VK_TRUE,                      // anisotropyEnable を TRUE に
+                maxAnisotropy,                // maxAnisotropy を物理デバイスの上限値に
                 VK_FALSE,
                 vk::CompareOp::eAlways,
-                0.0f,
-                0.0f,
+                0.0f,                         // minLod
+                static_cast<float>(mipLevels), // maxLod - ミップレベル数を設定
                 vk::BorderColor::eFloatOpaqueBlack,
                 VK_FALSE);
             material.baseColorTextureSampler = device->createSamplerUnique(samplerCreateInfo);
@@ -437,10 +563,13 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 material.baseColorTextureView.get(),
                 vk::ImageLayout::eShaderReadOnlyOptimal));
         }
+
         if (material.metallicRoughnessTextureRaw.has_value()) {
-            std::cout << "metallicRoughnessTextureRaw" << std::endl;
             textureData.insert(textureData.end(), material.metallicRoughnessTextureRaw->data.begin(), material.metallicRoughnessTextureRaw->data.end());
-            // material.metallicRoughnessTextureRaw->data.clear();
+            // ミップレベルの計算を追加
+            uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(
+                std::max(material.metallicRoughnessTextureRaw->width, material.metallicRoughnessTextureRaw->height)))) + 1;
+            
             if (material.metallicRoughnessTextureRaw->bits == 8) {
                 material.metallicRoughnessTexture = createImage(material.metallicRoughnessTextureRaw->width, material.metallicRoughnessTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
                 material.metallicRoughnessTextureView = createImageView(material.metallicRoughnessTexture.first.get(), vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor);
@@ -448,6 +577,7 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 material.metallicRoughnessTexture = createImage(material.metallicRoughnessTextureRaw->width, material.metallicRoughnessTextureRaw->height, vk::Format::eR16G16B16A16Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
                 material.metallicRoughnessTextureView = createImageView(material.metallicRoughnessTexture.first.get(), vk::Format::eR16G16B16A16Unorm, vk::ImageAspectFlagBits::eColor);
             }
+
             vk::SamplerCreateInfo samplerCreateInfo(
                 {},
                 material.metallicRoughnessTextureRaw->toVkFilter(material.metallicRoughnessTextureRaw->magFilter),
@@ -456,13 +586,13 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,
-                0.0f,
-                VK_FALSE,
-                16,
+                0.0f,                         // mipLodBias
+                VK_TRUE,                      // anisotropyEnable
+                maxAnisotropy,                // maxAnisotropy
                 VK_FALSE,
                 vk::CompareOp::eAlways,
-                0.0f,
-                0.0f,
+                0.0f,                         // minLod
+                static_cast<float>(mipLevels), // maxLod
                 vk::BorderColor::eFloatOpaqueBlack,
                 VK_FALSE);
             material.metallicRoughnessTextureSampler = device->createSamplerUnique(samplerCreateInfo);
@@ -472,9 +602,13 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 material.metallicRoughnessTextureView.get(),
                 vk::ImageLayout::eShaderReadOnlyOptimal));
         }
+
         if (material.normalTextureRaw.has_value()) {
             textureData.insert(textureData.end(), material.normalTextureRaw->data.begin(), material.normalTextureRaw->data.end());
-            // material.normalTextureRaw->data.clear();
+            // ミップレベルの計算を追加
+            uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(
+                std::max(material.normalTextureRaw->width, material.normalTextureRaw->height)))) + 1;
+            
             if (material.normalTextureRaw->bits == 8) {
                 material.normalTexture = createImage(material.normalTextureRaw->width, material.normalTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
                 material.normalTextureView = createImageView(material.normalTexture.first.get(), vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor);
@@ -482,6 +616,7 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 material.normalTexture = createImage(material.normalTextureRaw->width, material.normalTextureRaw->height, vk::Format::eR16G16B16A16Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
                 material.normalTextureView = createImageView(material.normalTexture.first.get(), vk::Format::eR16G16B16A16Unorm, vk::ImageAspectFlagBits::eColor);
             }
+
             vk::SamplerCreateInfo samplerCreateInfo(
                 {},
                 material.normalTextureRaw->toVkFilter(material.normalTextureRaw->magFilter),
@@ -490,13 +625,13 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,
-                0.0f,
-                VK_FALSE,
-                16,
+                0.0f,                         // mipLodBias
+                VK_TRUE,                      // anisotropyEnable
+                maxAnisotropy,                // maxAnisotropy
                 VK_FALSE,
                 vk::CompareOp::eAlways,
-                0.0f,
-                0.0f,
+                0.0f,                         // minLod
+                static_cast<float>(mipLevels), // maxLod
                 vk::BorderColor::eFloatOpaqueBlack,
                 VK_FALSE);
             material.normalTextureSampler = device->createSamplerUnique(samplerCreateInfo);
@@ -506,9 +641,13 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 material.normalTextureView.get(),
                 vk::ImageLayout::eShaderReadOnlyOptimal));
         }
+
         if (material.occlusionTextureRaw.has_value()) {
             textureData.insert(textureData.end(), material.occlusionTextureRaw->data.begin(), material.occlusionTextureRaw->data.end());
-            // material.occlusionTextureRaw->data.clear();
+            // ミップレベルの計算を追加
+            uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(
+                std::max(material.occlusionTextureRaw->width, material.occlusionTextureRaw->height)))) + 1;
+            
             if (material.occlusionTextureRaw->bits == 8) {
                 material.occlusionTexture = createImage(material.occlusionTextureRaw->width, material.occlusionTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
                 material.occlusionTextureView = createImageView(material.occlusionTexture.first.get(), vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor);
@@ -516,6 +655,7 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 material.occlusionTexture = createImage(material.occlusionTextureRaw->width, material.occlusionTextureRaw->height, vk::Format::eR16G16B16A16Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
                 material.occlusionTextureView = createImageView(material.occlusionTexture.first.get(), vk::Format::eR16G16B16A16Unorm, vk::ImageAspectFlagBits::eColor);
             }
+
             vk::SamplerCreateInfo samplerCreateInfo(
                 {},
                 material.occlusionTextureRaw->toVkFilter(material.occlusionTextureRaw->magFilter),
@@ -524,13 +664,13 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,
-                0.0f,
-                VK_FALSE,
-                16,
+                0.0f,                         // mipLodBias
+                VK_TRUE,                      // anisotropyEnable
+                maxAnisotropy,                // maxAnisotropy
                 VK_FALSE,
                 vk::CompareOp::eAlways,
-                0.0f,
-                0.0f,
+                0.0f,                         // minLod
+                static_cast<float>(mipLevels), // maxLod
                 vk::BorderColor::eFloatOpaqueBlack,
                 VK_FALSE);
             material.occlusionTextureSampler = device->createSamplerUnique(samplerCreateInfo);
@@ -540,9 +680,13 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 material.occlusionTextureView.get(),
                 vk::ImageLayout::eShaderReadOnlyOptimal));
         }
+
         if (material.emissiveTextureRaw.has_value()) {
             textureData.insert(textureData.end(), material.emissiveTextureRaw->data.begin(), material.emissiveTextureRaw->data.end());
-            // material.emissiveTextureRaw->data.clear();
+            // ミップレベルの計算を追加
+            uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(
+                std::max(material.emissiveTextureRaw->width, material.emissiveTextureRaw->height)))) + 1;
+            
             if (material.emissiveTextureRaw->bits == 8) {
                 material.emissiveTexture = createImage(material.emissiveTextureRaw->width, material.emissiveTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
                 material.emissiveTextureView = createImageView(material.emissiveTexture.first.get(), vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor);
@@ -550,6 +694,7 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 material.emissiveTexture = createImage(material.emissiveTextureRaw->width, material.emissiveTextureRaw->height, vk::Format::eR16G16B16A16Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
                 material.emissiveTextureView = createImageView(material.emissiveTexture.first.get(), vk::Format::eR16G16B16A16Unorm, vk::ImageAspectFlagBits::eColor);
             }
+
             vk::SamplerCreateInfo samplerCreateInfo(
                 {},
                 material.emissiveTextureRaw->toVkFilter(material.emissiveTextureRaw->magFilter),
@@ -558,13 +703,13 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,
-                0.0f,
-                VK_FALSE,
-                16,
+                0.0f,                         // mipLodBias
+                VK_TRUE,                      // anisotropyEnable
+                maxAnisotropy,                // maxAnisotropy
                 VK_FALSE,
                 vk::CompareOp::eAlways,
-                0.0f,
-                0.0f,
+                0.0f,                         // minLod
+                static_cast<float>(mipLevels), // maxLod
                 vk::BorderColor::eFloatOpaqueBlack,
                 VK_FALSE);
             material.emissiveTextureSampler = device->createSamplerUnique(samplerCreateInfo);
@@ -596,11 +741,14 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
 
         device->updateDescriptorSets(1, &writeDescriptorSet, 0, nullptr);
 
+        // ステージングバッファの作成とデータ転送
         std::cout << "Texture Data Size: " << textureData.size() * sizeof(uint8_t) << std::endl;
         auto stagingBuffer = createBuffer({}, textureData.size() * sizeof(uint8_t), vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible, vk::SharingMode::eExclusive);
         void *stagingBufferMem = device->mapMemory(stagingBuffer.second.get(), 0, textureData.size() * sizeof(uint8_t));
         std::memcpy(stagingBufferMem, textureData.data(), textureData.size() * sizeof(uint8_t));
+        device->unmapMemory(stagingBuffer.second.get());
 
+        // コマンドバッファの準備
         std::pair<vk::UniqueCommandPool, std::vector<vk::UniqueCommandBuffer>> commandBuffers = createCommandBuffers(vk::CommandPoolCreateFlagBits::eResetCommandBuffer, queueCreateInfos[0], 1);
         vk::CommandBufferBeginInfo beginInfo;
         beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
@@ -608,6 +756,7 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
 
         vk::DeviceSize offset = 0;
 
+        // 各テクスチャのコピーとミップマップ生成
         if (material.baseColorTextureRaw.has_value()) {
             copyTexture(commandBuffers.second[0].get(), material, material.baseColorTexture.first.get(), stagingBuffer.first.get(), offset, material.baseColorTextureRaw->width, material.baseColorTextureRaw->height);
             offset += material.baseColorTextureRaw->data.size() * sizeof(uint8_t);
@@ -629,12 +778,17 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
             offset += material.emissiveTextureRaw->data.size() * sizeof(uint8_t);
         }
 
+        // コマンド実行
         commandBuffers.second[0]->end();
 
         vk::CommandBuffer submitCmdBuf[1] = {commandBuffers.second[0].get()};
         vk::SubmitInfo submitInfo(0, nullptr, nullptr, 1, submitCmdBuf, 0, nullptr);
         graphicsQueues[0].submit(submitInfo, nullptr);
         graphicsQueues[0].waitIdle();
+        
+        // 転送後にテクスチャデータをクリア（オプション）
+        imageInfos.clear();
+        textureData.clear();
     }
 }
 
@@ -702,7 +856,6 @@ vk::UniqueShaderModule VulkanApp::createShaderModule(std::string filename) {
 
 // スワップチェーンの作成
 void VulkanApp::createSwapchain() {
-
     vk::SurfaceCapabilitiesKHR surfaceCapabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface.get());
     std::vector<vk::SurfaceFormatKHR> surfaceFormats = physicalDevice.getSurfaceFormatsKHR(surface.get());
     std::vector<vk::PresentModeKHR> surfacePresentModes = physicalDevice.getSurfacePresentModesKHR(surface.get());
@@ -742,13 +895,17 @@ void VulkanApp::createSwapchain() {
     }
 
     for (uint32_t i = 0; i < swapchainImages.size(); i++) {
-        positionImage.push_back(createImage(screenWidth, screenHeight, vk::Format::eR32G32B32A32Sfloat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled));
+        positionImage.push_back(createImage(screenWidth, screenHeight, vk::Format::eR32G32B32A32Sfloat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::SampleCountFlagBits::e4));
         positionImageView.push_back(createImageView(positionImage[i].first.get(), vk::Format::eR32G32B32A32Sfloat, vk::ImageAspectFlagBits::eColor));
-        normalImage.push_back(createImage(screenWidth, screenHeight, vk::Format::eR32G32B32A32Sfloat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled));
+        
+        normalImage.push_back(createImage(screenWidth, screenHeight, vk::Format::eR32G32B32A32Sfloat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::SampleCountFlagBits::e4));
         normalImageView.push_back(createImageView(normalImage[i].first.get(), vk::Format::eR32G32B32A32Sfloat, vk::ImageAspectFlagBits::eColor));
-        albedoImage.push_back(createImage(screenWidth, screenHeight, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled));
-        albedoImageView.push_back(createImageView(albedoImage[i].first.get(), vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor));
-        depthImage.push_back(createImage(screenWidth, screenHeight, vk::Format::eD32Sfloat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment));
+        
+        // スワップチェーンと同じフォーマットを使用（ここを修正）
+        albedoImage.push_back(createImage(screenWidth, screenHeight, swapchainFormat.format, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::SampleCountFlagBits::e4));
+        albedoImageView.push_back(createImageView(albedoImage[i].first.get(), swapchainFormat.format, vk::ImageAspectFlagBits::eColor));
+        
+        depthImage.push_back(createImage(screenWidth, screenHeight, vk::Format::eD32Sfloat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::SampleCountFlagBits::e4));
         depthImageView.push_back(createImageView(depthImage[i].first.get(), vk::Format::eD32Sfloat, vk::ImageAspectFlagBits::eDepth));
     }
 }
@@ -784,6 +941,7 @@ std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory> VulkanApp::createBuffer(
 }
 
 void VulkanApp::drawGBuffer(uint32_t objectIndex) {
+    // フェンスをリセットしてスワップチェーンイメージを取得
     device->resetFences({swapchainImgFence.get()});
     vk::ResultValue acquireResult = device->acquireNextImageKHR(swapchain.get(), UINT64_MAX, {}, swapchainImgFence.get());
 
@@ -796,18 +954,79 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex) {
         throw std::runtime_error("スワップチェーンイメージの取得に失敗しました");
     }
 
+    // コマンドバッファの準備
+    graphicCommandBuffers.at(0)->reset();
+    vk::CommandBufferBeginInfo beginInfo;
+    graphicCommandBuffers.at(0)->begin(beginInfo);
+
+    // ===== レンダリング前にバリアを適用 =====
+    
+    // 深度イメージの初期化バリア
+    vk::ImageMemoryBarrier depthMemoryBarrier = createImageMemoryBarrier(
+        depthImage.at(imageIndex).first.get(), 
+        vk::ImageLayout::eUndefined, 
+        vk::ImageLayout::eDepthStencilAttachmentOptimal, 
+        vk::AccessFlagBits::eNone, 
+        vk::AccessFlagBits::eDepthStencilAttachmentWrite, 
+        vk::ImageAspectFlagBits::eDepth
+    );
+    
+    // MSAAカラーターゲットの初期化バリア
+    vk::ImageMemoryBarrier albedoImageBarrier = createImageMemoryBarrier(
+        albedoImage.at(imageIndex).first.get(), 
+        vk::ImageLayout::eUndefined, 
+        vk::ImageLayout::eColorAttachmentOptimal, 
+        vk::AccessFlagBits::eNone, 
+        vk::AccessFlagBits::eColorAttachmentWrite, 
+        vk::ImageAspectFlagBits::eColor
+    );
+    
+    // スワップチェーンをリゾルブ先として準備
+    vk::ImageMemoryBarrier swapchainBarrier = createImageMemoryBarrier(
+        swapchainImages.at(imageIndex), 
+        vk::ImageLayout::eUndefined, 
+        vk::ImageLayout::eColorAttachmentOptimal, 
+        vk::AccessFlagBits::eNone, 
+        vk::AccessFlagBits::eColorAttachmentWrite, 
+        vk::ImageAspectFlagBits::eColor
+    );
+
+    // すべてのバリアを一度に適用
+    std::array<vk::ImageMemoryBarrier, 3> initialBarriers = {
+        depthMemoryBarrier,
+        albedoImageBarrier,
+        swapchainBarrier
+    };
+    
+    graphicCommandBuffers.at(0)->pipelineBarrier(
+        vk::PipelineStageFlagBits::eTopOfPipe,
+        vk::PipelineStageFlagBits::eEarlyFragmentTests | vk::PipelineStageFlagBits::eColorAttachmentOutput,
+        {},
+        {},
+        {},
+        initialBarriers
+    );
+
+    // ビューポート設定
+    graphicCommandBuffers.at(0)->setViewport(0, {viewport3d});
+
+    // ===== MSAAレンダリング設定 =====
+    
+    // MSAAカラーアタッチメントにリゾルブ設定 (平均化でスワップチェーンに解決)
     std::vector<vk::RenderingAttachmentInfo> colorAttachments = {
         vk::RenderingAttachmentInfo(
-            swapchainImageViews.at(imageIndex).get(), // imageView
-            vk::ImageLayout::eColorAttachmentOptimal, // imageLayout
-            vk::ResolveModeFlagBits::eNone,           // resolveMode
-            {},                                       // resolveImageView
-            vk::ImageLayout::eUndefined,              // resolveImageLayout
-            vk::AttachmentLoadOp::eClear,             // loadOp
-            vk::AttachmentStoreOp::eStore,            // storeOp
-            vk::ClearValue{}                          // clearValue
-            )};
+            albedoImageView.at(imageIndex).get(),          // MSAA対応のカラーアタッチメント
+            vk::ImageLayout::eColorAttachmentOptimal,      // imageLayout
+            vk::ResolveModeFlagBits::eAverage,             // リゾルブモード
+            swapchainImageViews.at(imageIndex).get(),      // リゾルブ先 (1サンプル)
+            vk::ImageLayout::eColorAttachmentOptimal,      // リゾルブ先レイアウト
+            vk::AttachmentLoadOp::eClear,                  // loadOp
+            vk::AttachmentStoreOp::eStore,                 // storeOp 
+            vk::ClearValue(vk::ClearColorValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f})) // 黒で初期化
+        )
+    };
 
+    // MSAA対応の深度アタッチメント
     std::vector<vk::RenderingAttachmentInfo> depthAttachments = {
         vk::RenderingAttachmentInfo(
             depthImageView.at(imageIndex).get(),             // imageView
@@ -817,8 +1036,9 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex) {
             vk::ImageLayout::eUndefined,                     // resolveImageLayout
             vk::AttachmentLoadOp::eClear,                    // loadOp
             vk::AttachmentStoreOp::eStore,                   // storeOp
-            vk::ClearValue{1.0}                              // clearValue
-            )};
+            vk::ClearValue{1.0f}                             // clearValue
+        )
+    };
 
     vk::RenderingInfo renderingInfo(
         {},                                              // flags
@@ -831,116 +1051,137 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex) {
         nullptr                                          // pStencilAttachment
     );
 
-    graphicCommandBuffers.at(0)->reset();
-
-    vk::CommandBufferBeginInfo beginInfo;
-    graphicCommandBuffers.at(0)->begin(beginInfo);
-
-    // vk::ImageMemoryBarrier firstMemoryBarrier;
-    // firstMemoryBarrier.srcAccessMask = vk::AccessFlagBits::eNone;
-    // firstMemoryBarrier.dstAccessMask = vk::AccessFlagBits::eNone;
-    // firstMemoryBarrier.oldLayout = vk::ImageLayout::eUndefined;
-    // firstMemoryBarrier.newLayout = vk::ImageLayout::eColorAttachmentOptimal;
-    // firstMemoryBarrier.image = swapchainImages[imageIndex];
-    // firstMemoryBarrier.setSubresourceRange({ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
-
-    // graphicCommandBuffers.at(0)->pipelineBarrier(
-    //     vk::PipelineStageFlagBits::eBottomOfPipe,
-    //     vk::PipelineStageFlagBits::eTopOfPipe,
-    //     {},
-    //     {},
-    //     {},
-    //     firstMemoryBarrier
-    // );
-
-    vk::ImageMemoryBarrier depthMemoriBarrier = createImageMemoryBarrier(depthImage.at(imageIndex).first.get(), vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthStencilAttachmentOptimal, vk::AccessFlagBits::eMemoryRead, vk::AccessFlagBits::eDepthStencilAttachmentWrite, vk::ImageAspectFlagBits::eDepth);
-    graphicCommandBuffers.at(0)->pipelineBarrier(
-        vk::PipelineStageFlagBits::eTopOfPipe,
-        vk::PipelineStageFlagBits::eEarlyFragmentTests,
-        {},
-        {},
-        {},
-        depthMemoriBarrier);
-
-    graphicCommandBuffers.at(0)->setViewport(0, {viewport3d});
+    // ===== 3Dシーンのレンダリング =====
     graphicCommandBuffers.at(0)->beginRendering(renderingInfo);
 
-    vk::ClearValue clearValue(vk::ClearColorValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}));
-
     graphicCommandBuffers.at(0)->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get());
+    graphicCommandBuffers.at(0)->pushConstants(
+        pipelineLayout.get(), 
+        vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eGeometry | vk::ShaderStageFlagBits::eFragment, 
+        0, 
+        sizeof(vpMatrix), 
+        &vpMatrix
+    );
 
-    graphicCommandBuffers.at(0)->pushConstants(pipelineLayout.get(), vk::ShaderStageFlagBits::eVertex, 0, sizeof(vpMatrix), &vpMatrix);
-
+    // モデル描画
     for (auto &model : modelDb.models) {
         if (model.instanceAttributes.empty())
             continue;
+        
         auto &[instanceBuf, instanceBufMem] = modelDb.instanceBuffers.at(model.modelIndex);
 
+        // インスタンスデータの転送
         const auto instanceBufSize = model.instanceAttributes.size() * sizeof(InstanceAttribute);
         const auto pInstanceBuf = device->mapMemory(instanceBufMem.get(), 0, instanceBufSize, {});
         std::memcpy(pInstanceBuf, model.instanceAttributes.data(), instanceBufSize);
+        
         vk::MappedMemoryRange range;
         range.memory = instanceBufMem.get();
         range.offset = 0;
         range.size = instanceBufSize;
-
         device->flushMappedMemoryRanges({range});
         device->unmapMemory(instanceBufMem.get());
 
-        graphicCommandBuffers.at(0)->bindVertexBuffers(0, {modelDb.vertexBuffers.at(model.modelIndex).first.get(), instanceBuf.get()}, {0, 0});
-        graphicCommandBuffers.at(0)->bindIndexBuffer(modelDb.indexBuffers.at(model.modelIndex).first.get(), 0, vk::IndexType::eUint32);
-        graphicCommandBuffers.at(0)->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout.get(), 0, {model.meshes[0].primitives[0].material->descSet.get()}, {});
+        // バインドと描画
+        graphicCommandBuffers.at(0)->bindVertexBuffers(
+            0, 
+            {modelDb.vertexBuffers.at(model.modelIndex).first.get(), instanceBuf.get()}, 
+            {0, 0}
+        );
+        graphicCommandBuffers.at(0)->bindIndexBuffer(
+            modelDb.indexBuffers.at(model.modelIndex).first.get(), 
+            0, 
+            vk::IndexType::eUint32
+        );
+        graphicCommandBuffers.at(0)->bindDescriptorSets(
+            vk::PipelineBindPoint::eGraphics, 
+            pipelineLayout.get(), 
+            0, 
+            {model.meshes[0].primitives[0].material->descSet.get()}, 
+            {}
+        );
 
+        // インデックスカウント計算
         uint32_t indexCount = 0;
         for (auto &mesh : model.meshes) {
             for (auto &primitive : mesh.primitives) {
                 indexCount += primitive.indices.size();
             }
         }
-        graphicCommandBuffers.at(0)->drawIndexed(indexCount, model.instanceAttributes.size(), 0, 0, 0);
+        
+        graphicCommandBuffers.at(0)->drawIndexed(
+            indexCount, 
+            model.instanceAttributes.size(), 
+            0, 0, 0
+        );
 
         model.instanceAttributes.clear();
     }
+    
     graphicCommandBuffers.at(0)->endRendering();
 
+    // ===== UI描画（MSAAなし、直接スワップチェーンに描画） =====
     {
-        std::vector<vk::RenderingAttachmentInfo> colorAttachments = {
+        std::vector<vk::RenderingAttachmentInfo> uiColorAttachments = {
             vk::RenderingAttachmentInfo(
                 swapchainImageViews.at(imageIndex).get(), // imageView
                 vk::ImageLayout::eColorAttachmentOptimal, // imageLayout
                 vk::ResolveModeFlagBits::eNone,           // resolveMode
                 {},                                       // resolveImageView
                 vk::ImageLayout::eUndefined,              // resolveImageLayout
-                vk::AttachmentLoadOp::eLoad,              // loadOp
+                vk::AttachmentLoadOp::eLoad,              // loadOp - 前の内容を維持
                 vk::AttachmentStoreOp::eStore,            // storeOp
                 vk::ClearValue{}                          // clearValue
-                )};
+            )
+        };
 
-        vk::RenderingInfo renderingInfo(
+        vk::RenderingInfo uiRenderingInfo(
             {},                                              // flags
             vk::Rect2D({0, 0}, {screenWidth, screenHeight}), // renderArea
             1,                                               // layerCount
             0,                                               // viewMask
-            colorAttachments.size(),                         // colorAttachmentCount
-            colorAttachments.data(),                         // pColorAttachments
-            nullptr,                                         // pDepthAttachment
+            uiColorAttachments.size(),                       // colorAttachmentCount
+            uiColorAttachments.data(),                       // pColorAttachments
+            nullptr,                                         // pDepthAttachment - UI描画では不要
             nullptr                                          // pStencilAttachment
         );
-        graphicCommandBuffers.at(0)->beginRendering(renderingInfo);
-    }
-    {
+        
+        graphicCommandBuffers.at(0)->beginRendering(uiRenderingInfo);
+        
+        // UI描画
         graphicCommandBuffers.at(0)->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline2D.get());
         for (const auto &drawInfo : uiImageDrawInfos) {
-            graphicCommandBuffers.at(0)->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline2DLayout.get(), 0, {drawInfo.data->descSet.get()}, {});
-            graphicCommandBuffers.at(0)->pushConstants(pipeline2DLayout.get(), vk::ShaderStageFlagBits::eVertex, 0, sizeof(Render2DPushConstantInfo), &drawInfo.push);
+            graphicCommandBuffers.at(0)->bindDescriptorSets(
+                vk::PipelineBindPoint::eGraphics, 
+                pipeline2DLayout.get(), 
+                0, 
+                {drawInfo.data->descSet.get()}, 
+                {}
+            );
+            graphicCommandBuffers.at(0)->pushConstants(
+                pipeline2DLayout.get(), 
+                vk::ShaderStageFlagBits::eVertex, 
+                0, 
+                sizeof(Render2DPushConstantInfo), 
+                &drawInfo.push
+            );
             graphicCommandBuffers.at(0)->draw(6, 1, 0, 0);
         }
         uiImageDrawInfos.clear();
+        
+        graphicCommandBuffers.at(0)->endRendering();
     }
 
-    graphicCommandBuffers.at(0)->endRendering();
-
-    vk::ImageMemoryBarrier imageMemoryBarrier = createImageMemoryBarrier(swapchainImages.at(imageIndex), vk::ImageLayout::eUndefined, vk::ImageLayout::ePresentSrcKHR, vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eMemoryRead);
+    // ===== レンダリング後のバリア =====
+    // スワップチェーンイメージをプレゼント用に遷移
+    vk::ImageMemoryBarrier presentBarrier = createImageMemoryBarrier(
+        swapchainImages.at(imageIndex), 
+        vk::ImageLayout::eColorAttachmentOptimal, 
+        vk::ImageLayout::ePresentSrcKHR, 
+        vk::AccessFlagBits::eColorAttachmentWrite, 
+        vk::AccessFlagBits::eMemoryRead,
+        vk::ImageAspectFlagBits::eColor
+    );
 
     graphicCommandBuffers.at(0)->pipelineBarrier(
         vk::PipelineStageFlagBits::eColorAttachmentOutput,
@@ -948,32 +1189,28 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex) {
         {},
         {},
         {},
-        imageMemoryBarrier);
+        presentBarrier
+    );
+
+    // コマンドバッファ完了
     graphicCommandBuffers.at(0)->end();
 
+    // ===== コマンドバッファの実行とプレゼント =====
     vk::CommandBuffer submitCommandBuffer = graphicCommandBuffers.at(0).get();
-    vk::SubmitInfo submitInfo(
-        {},
-        {},
-        {submitCommandBuffer},
-        {});
-
-    // device->waitIdle();
-    // graphicsQueues.at(0).waitIdle();
+    vk::SubmitInfo submitInfo({}, {}, {submitCommandBuffer}, {});
 
     graphicsQueues.at(0).submit({submitInfo});
 
+    // プレゼント設定
     vk::PresentInfoKHR presentInfo;
-
     auto presentSwapchains = {swapchain.get()};
     auto imgIndices = {imageIndex};
-
     presentInfo.swapchainCount = presentSwapchains.size();
     presentInfo.pSwapchains = presentSwapchains.begin();
     presentInfo.pImageIndices = imgIndices.begin();
 
+    // プレゼント実行
     graphicsQueues.at(0).presentKHR(presentInfo);
-
     graphicsQueues.at(0).waitIdle();
 }
 
@@ -987,6 +1224,11 @@ void VulkanApp::setCamera(glm::vec3 pos, glm::vec3 dir, glm::vec3 up) {
 
 void VulkanApp::setProjection(float horizontalAngle, float near, float far) {
     vpMatrix.projection = glm::perspective(glm::radians(horizontalAngle), static_cast<float>(viewport3d.width) / static_cast<float>(viewport3d.height), near, far);
+}
+
+void VulkanApp::setLine(glm::vec4 color, float width) {
+    vpMatrix.lineColor = color;
+    vpMatrix.lineWidth = width;
 }
 
 void VulkanApp::drawModel(const Model &model, glm::mat4x4 modelMatrix) {

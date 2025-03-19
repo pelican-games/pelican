@@ -98,8 +98,12 @@ class VulkanApp : public pl::Renderer {
         std::vector<vk::DeviceQueueCreateInfo> findQueues(std::vector<float> &graphicQueuePriorities, std::vector<float> &computeQueuePriorities);
         uint32_t checkPresentationSupport(vk::SurfaceKHR surface);
         
+        //mipmapの生成
+        void generateMipmaps(vk::CommandBuffer cmdBuffer, vk::Image image, 
+            int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
+
         //イメージの作成
-        std::pair <vk::UniqueImage , vk::UniqueDeviceMemory> createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage);
+        std::pair <vk::UniqueImage , vk::UniqueDeviceMemory> createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::SampleCountFlagBits samples = vk::SampleCountFlagBits::e1);
         vk::UniqueImageView createImageView(vk::Image image, vk::Format format, vk::ImageAspectFlags aspectFlags);
         uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
@@ -134,6 +138,7 @@ class VulkanApp : public pl::Renderer {
         pl::Model loadModel(std::filesystem::path file_path, uint32_t max_object_num) override;
         //void loadObject(std::filesystem::path file_path) override;
         void setViewport(int x, int y, int w, int h) override;
+        void setLine(glm::vec4 color, float width) override;
 
         void drawUIImage(const UIImage &image, int x, int y, int texX, int texY, int texW, int texH, float scaleX, float scaleY);
         pl::UIImage loadUIImage(std::filesystem::path file_path);

@@ -1,8 +1,6 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-//layout(set = 0, binding = 1) uniform sampler2D texSampler;
-
 layout(location = 0) out vec4 outColor;
 
 layout(location = 0) in vec2 fragmentUV;
@@ -23,24 +21,44 @@ layout(set = 0, binding = 5) uniform samplerCube irradianceMap;
 layout(set = 0, binding = 6) uniform samplerCube prefilteredMap;
 layout(set = 0, binding = 7) uniform sampler2D brdfLUT;
 
+// 光源情報をハードコーディング
+const int LIGHT_COUNT = 3; // 光源の数
+
+// ポイントライトの構造体定義
+struct PointLight {
+    vec3 position;   // ワールド空間での位置
+    vec3 color;      // 色
+    float intensity; // 強度
+};
+
+// 複数の光源をハードコーディングで定義
+const PointLight lights[LIGHT_COUNT] = PointLight[](
+    // 光源1: 正面上
+    PointLight(
+        vec3(0.0, 5.0, 5.0),  // 位置
+        vec3(1.0, 0.0, 0.0),  // 暖色系の光
+        80.0                  // 強度
+    ),
+    // 光源2: 左側
+    PointLight(
+        vec3(-5.0, 2.0, 0.0), // 位置
+        vec3(0.0, 0.0, 0.0),  // 青っぽい光
+        60.0                  // 強度
+    ),
+    // 光源3: 右側
+    PointLight(
+        vec3(0.0, 5.0, -2.0), // 位置
+        vec3(0.0, 1.0, 0.4314),  // 赤っぽい光
+        60.0                  // 強度
+    )
+);
+
 layout(push_constant) uniform PushConstant {
     mat4 view;
     mat4 proj;
     vec4 outlineColor;
     float outlineWidth;
 } push;
-
-struct PointLight {
-    vec3 position;
-    vec3 color;
-    float intensity;
-};
-
-const PointLight pointLight = PointLight(
-    vec3(5.0, 5.0, 5.0), // 光源位置
-    vec3(1.0, 1.0, 1.0), // 光源色
-    100                  // 光源強度
-);
 
 const float PI = 3.14159265359;
 
@@ -115,9 +133,9 @@ void main() {
         N = normalize(fragmentNormal);
     }
 
-        // glTF-PBRの標準に合わせて修正
-    float metallic = specularColor.b;   // Rチャンネルに金属度（一般的なglTF仕様）
-    float roughness = specularColor.g;  // Gチャンネルに粗さ（一般的なglTF仕様）
+    // glTF-PBRの標準に合わせて修正
+    float metallic = specularColor.b;   // Bチャンネルに金属度
+    float roughness = specularColor.g;  // Gチャンネルに粗さ
 
     // 低すぎるとスペキュラーがほぼ見えないため、最小値を設定
     roughness = max(roughness, 0.01);
@@ -128,42 +146,52 @@ void main() {
     // 視線方向（ビュー空間ではカメラは原点）
     vec3 V = normalize(-fragmentPos);
     
-    // 光源パラメータ調整（強めの光を使用）
-    vec3 L = normalize(pointLight.position - fragmentPos);
-    vec3 H = normalize(V + L);
-    float distance = length(pointLight.position - fragmentPos);
-    
-    // 減衰を調整（より遠くまで届くように）
-    float attenuation = 1.0 / (1.0 + 0.01 * distance + 0.001 * (distance * distance));
-    vec3 radiance = pointLight.color * pointLight.intensity * attenuation;
-    
     // 金属度に基づく基礎反射率（F0）の計算
-    // 非金属: 0.04, 金属: albedo
     vec3 F0 = vec3(0.04); 
     F0 = mix(F0, albedo, metallic);
     
-    // Cook-Torrance BRDF
-    float NDF = DistributionGGX(N, H, roughness);
-    float G = GeometrySmith(N, V, L, roughness);
-    vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+    // すべての光源からの寄与を計算
+    vec3 Lo = vec3(0.0);
     
-    // 反射率と拡散率の計算
-    vec3 kS = F;
-    vec3 kD = vec3(1.0) - kS;
-    kD *= 1.0 - metallic; // 金属はディフューズ成分を持たない
-    
-    // スペキュラー項の計算
-    vec3 numerator = NDF * G * F;
-    float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-    vec3 specular = numerator / denominator;
-    
-    // 拡散反射と鏡面反射の合成
-    float NdotL = max(dot(N, L), 0.0);
-    vec3 Lo = (kD * albedo / PI + specular) * radiance * NdotL;
+    // 各光源からの寄与を蓄積
+    for (int i = 0; i < LIGHT_COUNT; i++) {
+        // ワールド空間の光源位置をビュー空間に変換
+        vec3 lightPos = (push.view * vec4(lights[i].position, 1.0)).xyz;
+        vec3 lightColor = lights[i].color;
+        float lightIntensity = lights[i].intensity;
+        
+        // 光源方向と距離
+        vec3 L = normalize(lightPos - fragmentPos);
+        vec3 H = normalize(V + L);
+        float distance = length(lightPos - fragmentPos);
+        
+        // 減衰計算
+        float attenuation = 1.0 / (1.0 + 0.01 * distance + 0.001 * (distance * distance));
+        vec3 radiance = lightColor * lightIntensity * attenuation;
+        
+        // Cook-Torrance BRDF
+        float NDF = DistributionGGX(N, H, roughness);
+        float G = GeometrySmith(N, V, L, roughness);
+        vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+        
+        // 反射率と拡散率の計算
+        vec3 kS = F;
+        vec3 kD = vec3(1.0) - kS;
+        kD *= 1.0 - metallic; // 金属はディフューズ成分を持たない
+        
+        // スペキュラー項の計算
+        vec3 numerator = NDF * G * F;
+        float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+        vec3 specular = numerator / denominator;
+        
+        // 拡散反射と鏡面反射の合成
+        float NdotL = max(dot(N, L), 0.0);
+        Lo += (kD * albedo / PI + specular) * radiance * NdotL;
+    }
     
     // 環境光の詳細制御
-    float ambientIntensity = 0.0;   // 0.0 = 完全に黒い環境
-    float reflectionIntensity = 0.0; // 0.0 = 環境からの反射なし
+    float ambientIntensity = 0.03;  // わずかな環境光を追加
+    float reflectionIntensity = 0.0;
 
     // 拡散環境光
     vec3 ambientDiffuse = vec3(ambientIntensity) * albedo * (1.0 - metallic);
@@ -177,10 +205,6 @@ void main() {
     
     // 最終カラーの計算
     vec3 color = ambient + Lo + emission;
-    
-    // デバッグ出力（必要に応じて有効化）
-    // outColor = vec4(specular * 5.0, 1.0); // スペキュラーを強調表示
-    // return;
     
     // トーンマッピング（HDRをLDRに変換）- ACES近似
     color = color / (color + vec3(1.0));

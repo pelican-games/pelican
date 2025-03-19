@@ -30,23 +30,20 @@ layout(push_constant) uniform PushConstant {
 } push;
 
 void main() {
-    // 1. まず拡大したモデル（アウトライン）を描画
-    vec3 centerPos = (inWorldPos[0] + inWorldPos[1] + inWorldPos[2]) / 3.0;
-    
     // 三角形の法線を計算（フロントフェイス判定用）
     vec3 edge1 = inWorldPos[1] - inWorldPos[0];
     vec3 edge2 = inWorldPos[2] - inWorldPos[0];
     vec3 faceNormal = normalize(cross(edge1, edge2));
     
     // 視線方向を計算
-    vec3 cameraPos = vec3(push.view[0][3], push.view[1][3], push.view[2][3]);
-    vec3 viewDir = normalize(cameraPos - centerPos);
+    vec3 cameraPos = vec3(0.0, 0.0, 0.0); // カメラはビュー空間の原点
+    vec3 viewDir = normalize((push.view * vec4(faceNormal, 0.0)).xyz);
     
     // フロントフェイスかどうか判定
-    float NdotV = dot(faceNormal, viewDir);
+    float NdotV = dot(normalize((push.view * vec4(faceNormal, 0.0)).xyz), vec3(0.0, 0.0, 1.0));
     
     // バックフェイスのみ描画（アウトラインとして）
-    if (NdotV < 0.0) {  // バックフェイスの場合
+    if (NdotV < 0.1) {  // しきい値を少し大きくして輪郭をより強調
         for (int i = 0; i < 3; i++) {
             outFragmentUV = inFragmentUV[i];
             outWorldPos = inWorldPos[i];
@@ -55,16 +52,18 @@ void main() {
             outWorldBitangent = inWorldBitangent[i];
             outIsOutline = 1;  // アウトライン
             
-            // スケーリングでサイズを大きくする
-            vec3 dirFromCenter = normalize(inWorldPos[i] - centerPos);
-            vec3 scaledPos = centerPos + (inWorldPos[i] - centerPos) * (1.0 + push.outlineWidth);
-            gl_Position = push.proj * push.view * vec4(scaledPos, 1.0);
+            // スケーリングではなく頂点法線方向に押し出す
+            vec4 pos = gl_in[i].gl_Position;
+            vec3 normal = inWorldNormal[i];
             
-            // 深度値を意図的に遠くに移動（Z-fightingの防止）
-            vec4 position = gl_Position;
-            position.z += 0.001 * position.w; // 正の値で背面に移動
+            // NDC空間で一定幅になるよう調整
+            vec3 viewNormal = normalize((push.view * vec4(normal, 0.0)).xyz);
+            vec4 extrudedPos = pos + vec4(viewNormal.xy * push.outlineWidth * pos.w, 0.0, 0.0);
             
-            gl_Position = position;
+            // 深度値を遠くに移動（Z-fightingの防止）- 値を大きくする
+            extrudedPos.z += 0.005 * extrudedPos.w; // 0.001から0.005に増加
+            
+            gl_Position = extrudedPos;
             EmitVertex();
         }
         EndPrimitive();

@@ -25,7 +25,7 @@ int main() {
 
             renderer.setCamera(glm::vec3(cos(theta) * 10.0f, sin(theta) * 10.0f, 0.0), glm::vec3(-cos(theta), -sin(theta), 0.0), glm::vec3(0.0, 0.0, 1.0));
             renderer.setProjection(45.0);
-            renderer.setLine(glm::vec4(1.0, 0.0, 0.0, 1.0), 0.4);
+            renderer.setLine(glm::vec4(1.0, 0.0, 0.0, 1.0), 0.01);
             //renderer.drawModel(test_model, glm::identity<glm::mat4>());
             glm::mat4 model_matrix = glm::scale(glm::identity<glm::mat4>(), glm::vec3(3)); 
             renderer.drawModel(test_model2, model_matrix);

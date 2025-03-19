@@ -86,9 +86,9 @@ vk::UniquePipeline PipelineBuilder::buildPipeline(vk::Device device, vk::UniqueP
     );
 
     multisampling = vk::PipelineMultisampleStateCreateInfo(
-        {},                          // flags
-        vk::SampleCountFlagBits::e1, // rasterizationSamples
-        VK_FALSE,                    // sampleShadingEnable
+        {},                          
+        vk::SampleCountFlagBits::e4, // 1から4または8に変更
+        VK_TRUE,                     // サンプルシェーディングを有効化
         1.0f,                        // minSampleShading
         nullptr,                     // pSampleMask
         VK_FALSE,                    // alphaToCoverageEnable

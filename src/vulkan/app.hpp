@@ -103,7 +103,7 @@ class VulkanApp : public pl::Renderer {
             int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
 
         //イメージの作成
-        std::pair <vk::UniqueImage , vk::UniqueDeviceMemory> createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage);
+        std::pair <vk::UniqueImage , vk::UniqueDeviceMemory> createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::SampleCountFlagBits samples = vk::SampleCountFlagBits::e1);
         vk::UniqueImageView createImageView(vk::Image image, vk::Format format, vk::ImageAspectFlags aspectFlags);
         uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 

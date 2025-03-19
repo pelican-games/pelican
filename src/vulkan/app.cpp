@@ -289,8 +289,7 @@ std::vector<vk::DeviceQueueCreateInfo> VulkanApp::findQueues(std::vector<float> 
 }
 
 // イメージの作成
-std::pair<vk::UniqueImage, vk::UniqueDeviceMemory> VulkanApp::createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage) {
-    
+std::pair<vk::UniqueImage, vk::UniqueDeviceMemory> VulkanApp::createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::SampleCountFlagBits samples) {
     
     // ミップレベルの計算
     uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
@@ -302,7 +301,7 @@ std::pair<vk::UniqueImage, vk::UniqueDeviceMemory> VulkanApp::createImage(uint32
         vk::Extent3D(width, height, 1),
         mipLevels,  // 1からミップレベル数に変更
         1,
-        vk::SampleCountFlagBits::e1,
+        samples,
         tiling,
         usage | vk::ImageUsageFlagBits::eTransferSrc, // ミップマップ生成に必要
         vk::SharingMode::eExclusive,
@@ -849,7 +848,6 @@ vk::UniqueShaderModule VulkanApp::createShaderModule(std::string filename) {
 
 // スワップチェーンの作成
 void VulkanApp::createSwapchain() {
-
     vk::SurfaceCapabilitiesKHR surfaceCapabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface.get());
     std::vector<vk::SurfaceFormatKHR> surfaceFormats = physicalDevice.getSurfaceFormatsKHR(surface.get());
     std::vector<vk::PresentModeKHR> surfacePresentModes = physicalDevice.getSurfacePresentModesKHR(surface.get());
@@ -889,13 +887,17 @@ void VulkanApp::createSwapchain() {
     }
 
     for (uint32_t i = 0; i < swapchainImages.size(); i++) {
-        positionImage.push_back(createImage(screenWidth, screenHeight, vk::Format::eR32G32B32A32Sfloat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled));
+        positionImage.push_back(createImage(screenWidth, screenHeight, vk::Format::eR32G32B32A32Sfloat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::SampleCountFlagBits::e4));
         positionImageView.push_back(createImageView(positionImage[i].first.get(), vk::Format::eR32G32B32A32Sfloat, vk::ImageAspectFlagBits::eColor));
-        normalImage.push_back(createImage(screenWidth, screenHeight, vk::Format::eR32G32B32A32Sfloat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled));
+        
+        normalImage.push_back(createImage(screenWidth, screenHeight, vk::Format::eR32G32B32A32Sfloat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::SampleCountFlagBits::e4));
         normalImageView.push_back(createImageView(normalImage[i].first.get(), vk::Format::eR32G32B32A32Sfloat, vk::ImageAspectFlagBits::eColor));
-        albedoImage.push_back(createImage(screenWidth, screenHeight, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled));
-        albedoImageView.push_back(createImageView(albedoImage[i].first.get(), vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor));
-        depthImage.push_back(createImage(screenWidth, screenHeight, vk::Format::eD32Sfloat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment));
+        
+        // スワップチェーンと同じフォーマットを使用（ここを修正）
+        albedoImage.push_back(createImage(screenWidth, screenHeight, swapchainFormat.format, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::SampleCountFlagBits::e4));
+        albedoImageView.push_back(createImageView(albedoImage[i].first.get(), swapchainFormat.format, vk::ImageAspectFlagBits::eColor));
+        
+        depthImage.push_back(createImage(screenWidth, screenHeight, vk::Format::eD32Sfloat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::SampleCountFlagBits::e4));
         depthImageView.push_back(createImageView(depthImage[i].first.get(), vk::Format::eD32Sfloat, vk::ImageAspectFlagBits::eDepth));
     }
 }
@@ -931,6 +933,7 @@ std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory> VulkanApp::createBuffer(
 }
 
 void VulkanApp::drawGBuffer(uint32_t objectIndex) {
+    // フェンスをリセットしてスワップチェーンイメージを取得
     device->resetFences({swapchainImgFence.get()});
     vk::ResultValue acquireResult = device->acquireNextImageKHR(swapchain.get(), UINT64_MAX, {}, swapchainImgFence.get());
 
@@ -943,18 +946,79 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex) {
         throw std::runtime_error("スワップチェーンイメージの取得に失敗しました");
     }
 
+    // コマンドバッファの準備
+    graphicCommandBuffers.at(0)->reset();
+    vk::CommandBufferBeginInfo beginInfo;
+    graphicCommandBuffers.at(0)->begin(beginInfo);
+
+    // ===== レンダリング前にバリアを適用 =====
+    
+    // 深度イメージの初期化バリア
+    vk::ImageMemoryBarrier depthMemoryBarrier = createImageMemoryBarrier(
+        depthImage.at(imageIndex).first.get(), 
+        vk::ImageLayout::eUndefined, 
+        vk::ImageLayout::eDepthStencilAttachmentOptimal, 
+        vk::AccessFlagBits::eNone, 
+        vk::AccessFlagBits::eDepthStencilAttachmentWrite, 
+        vk::ImageAspectFlagBits::eDepth
+    );
+    
+    // MSAAカラーターゲットの初期化バリア
+    vk::ImageMemoryBarrier albedoImageBarrier = createImageMemoryBarrier(
+        albedoImage.at(imageIndex).first.get(), 
+        vk::ImageLayout::eUndefined, 
+        vk::ImageLayout::eColorAttachmentOptimal, 
+        vk::AccessFlagBits::eNone, 
+        vk::AccessFlagBits::eColorAttachmentWrite, 
+        vk::ImageAspectFlagBits::eColor
+    );
+    
+    // スワップチェーンをリゾルブ先として準備
+    vk::ImageMemoryBarrier swapchainBarrier = createImageMemoryBarrier(
+        swapchainImages.at(imageIndex), 
+        vk::ImageLayout::eUndefined, 
+        vk::ImageLayout::eColorAttachmentOptimal, 
+        vk::AccessFlagBits::eNone, 
+        vk::AccessFlagBits::eColorAttachmentWrite, 
+        vk::ImageAspectFlagBits::eColor
+    );
+
+    // すべてのバリアを一度に適用
+    std::array<vk::ImageMemoryBarrier, 3> initialBarriers = {
+        depthMemoryBarrier,
+        albedoImageBarrier,
+        swapchainBarrier
+    };
+    
+    graphicCommandBuffers.at(0)->pipelineBarrier(
+        vk::PipelineStageFlagBits::eTopOfPipe,
+        vk::PipelineStageFlagBits::eEarlyFragmentTests | vk::PipelineStageFlagBits::eColorAttachmentOutput,
+        {},
+        {},
+        {},
+        initialBarriers
+    );
+
+    // ビューポート設定
+    graphicCommandBuffers.at(0)->setViewport(0, {viewport3d});
+
+    // ===== MSAAレンダリング設定 =====
+    
+    // MSAAカラーアタッチメントにリゾルブ設定 (平均化でスワップチェーンに解決)
     std::vector<vk::RenderingAttachmentInfo> colorAttachments = {
         vk::RenderingAttachmentInfo(
-            swapchainImageViews.at(imageIndex).get(), // imageView
-            vk::ImageLayout::eColorAttachmentOptimal, // imageLayout
-            vk::ResolveModeFlagBits::eNone,           // resolveMode
-            {},                                       // resolveImageView
-            vk::ImageLayout::eUndefined,              // resolveImageLayout
-            vk::AttachmentLoadOp::eClear,             // loadOp
-            vk::AttachmentStoreOp::eStore,            // storeOp
-            vk::ClearValue{}                          // clearValue
-            )};
+            albedoImageView.at(imageIndex).get(),          // MSAA対応のカラーアタッチメント
+            vk::ImageLayout::eColorAttachmentOptimal,      // imageLayout
+            vk::ResolveModeFlagBits::eAverage,             // リゾルブモード
+            swapchainImageViews.at(imageIndex).get(),      // リゾルブ先 (1サンプル)
+            vk::ImageLayout::eColorAttachmentOptimal,      // リゾルブ先レイアウト
+            vk::AttachmentLoadOp::eClear,                  // loadOp
+            vk::AttachmentStoreOp::eStore,                 // storeOp 
+            vk::ClearValue(vk::ClearColorValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f})) // 黒で初期化
+        )
+    };
 
+    // MSAA対応の深度アタッチメント
     std::vector<vk::RenderingAttachmentInfo> depthAttachments = {
         vk::RenderingAttachmentInfo(
             depthImageView.at(imageIndex).get(),             // imageView
@@ -964,8 +1028,9 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex) {
             vk::ImageLayout::eUndefined,                     // resolveImageLayout
             vk::AttachmentLoadOp::eClear,                    // loadOp
             vk::AttachmentStoreOp::eStore,                   // storeOp
-            vk::ClearValue{1.0}                              // clearValue
-            )};
+            vk::ClearValue{1.0f}                             // clearValue
+        )
+    };
 
     vk::RenderingInfo renderingInfo(
         {},                                              // flags
@@ -978,116 +1043,137 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex) {
         nullptr                                          // pStencilAttachment
     );
 
-    graphicCommandBuffers.at(0)->reset();
-
-    vk::CommandBufferBeginInfo beginInfo;
-    graphicCommandBuffers.at(0)->begin(beginInfo);
-
-    // vk::ImageMemoryBarrier firstMemoryBarrier;
-    // firstMemoryBarrier.srcAccessMask = vk::AccessFlagBits::eNone;
-    // firstMemoryBarrier.dstAccessMask = vk::AccessFlagBits::eNone;
-    // firstMemoryBarrier.oldLayout = vk::ImageLayout::eUndefined;
-    // firstMemoryBarrier.newLayout = vk::ImageLayout::eColorAttachmentOptimal;
-    // firstMemoryBarrier.image = swapchainImages[imageIndex];
-    // firstMemoryBarrier.setSubresourceRange({ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
-
-    // graphicCommandBuffers.at(0)->pipelineBarrier(
-    //     vk::PipelineStageFlagBits::eBottomOfPipe,
-    //     vk::PipelineStageFlagBits::eTopOfPipe,
-    //     {},
-    //     {},
-    //     {},
-    //     firstMemoryBarrier
-    // );
-
-    vk::ImageMemoryBarrier depthMemoriBarrier = createImageMemoryBarrier(depthImage.at(imageIndex).first.get(), vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthStencilAttachmentOptimal, vk::AccessFlagBits::eMemoryRead, vk::AccessFlagBits::eDepthStencilAttachmentWrite, vk::ImageAspectFlagBits::eDepth);
-    graphicCommandBuffers.at(0)->pipelineBarrier(
-        vk::PipelineStageFlagBits::eTopOfPipe,
-        vk::PipelineStageFlagBits::eEarlyFragmentTests,
-        {},
-        {},
-        {},
-        depthMemoriBarrier);
-
-    graphicCommandBuffers.at(0)->setViewport(0, {viewport3d});
+    // ===== 3Dシーンのレンダリング =====
     graphicCommandBuffers.at(0)->beginRendering(renderingInfo);
 
-    vk::ClearValue clearValue(vk::ClearColorValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}));
-
     graphicCommandBuffers.at(0)->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get());
+    graphicCommandBuffers.at(0)->pushConstants(
+        pipelineLayout.get(), 
+        vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eGeometry | vk::ShaderStageFlagBits::eFragment, 
+        0, 
+        sizeof(vpMatrix), 
+        &vpMatrix
+    );
 
-    graphicCommandBuffers.at(0)->pushConstants(pipelineLayout.get(), vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eGeometry |vk::ShaderStageFlagBits::eFragment, 0, sizeof(vpMatrix), &vpMatrix);
-
+    // モデル描画
     for (auto &model : modelDb.models) {
         if (model.instanceAttributes.empty())
             continue;
+        
         auto &[instanceBuf, instanceBufMem] = modelDb.instanceBuffers.at(model.modelIndex);
 
+        // インスタンスデータの転送
         const auto instanceBufSize = model.instanceAttributes.size() * sizeof(InstanceAttribute);
         const auto pInstanceBuf = device->mapMemory(instanceBufMem.get(), 0, instanceBufSize, {});
         std::memcpy(pInstanceBuf, model.instanceAttributes.data(), instanceBufSize);
+        
         vk::MappedMemoryRange range;
         range.memory = instanceBufMem.get();
         range.offset = 0;
         range.size = instanceBufSize;
-
         device->flushMappedMemoryRanges({range});
         device->unmapMemory(instanceBufMem.get());
 
-        graphicCommandBuffers.at(0)->bindVertexBuffers(0, {modelDb.vertexBuffers.at(model.modelIndex).first.get(), instanceBuf.get()}, {0, 0});
-        graphicCommandBuffers.at(0)->bindIndexBuffer(modelDb.indexBuffers.at(model.modelIndex).first.get(), 0, vk::IndexType::eUint32);
-        graphicCommandBuffers.at(0)->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout.get(), 0, {model.meshes[0].primitives[0].material->descSet.get()}, {});
+        // バインドと描画
+        graphicCommandBuffers.at(0)->bindVertexBuffers(
+            0, 
+            {modelDb.vertexBuffers.at(model.modelIndex).first.get(), instanceBuf.get()}, 
+            {0, 0}
+        );
+        graphicCommandBuffers.at(0)->bindIndexBuffer(
+            modelDb.indexBuffers.at(model.modelIndex).first.get(), 
+            0, 
+            vk::IndexType::eUint32
+        );
+        graphicCommandBuffers.at(0)->bindDescriptorSets(
+            vk::PipelineBindPoint::eGraphics, 
+            pipelineLayout.get(), 
+            0, 
+            {model.meshes[0].primitives[0].material->descSet.get()}, 
+            {}
+        );
 
+        // インデックスカウント計算
         uint32_t indexCount = 0;
         for (auto &mesh : model.meshes) {
             for (auto &primitive : mesh.primitives) {
                 indexCount += primitive.indices.size();
             }
         }
-        graphicCommandBuffers.at(0)->drawIndexed(indexCount, model.instanceAttributes.size(), 0, 0, 0);
+        
+        graphicCommandBuffers.at(0)->drawIndexed(
+            indexCount, 
+            model.instanceAttributes.size(), 
+            0, 0, 0
+        );
 
         model.instanceAttributes.clear();
     }
+    
     graphicCommandBuffers.at(0)->endRendering();
 
+    // ===== UI描画（MSAAなし、直接スワップチェーンに描画） =====
     {
-        std::vector<vk::RenderingAttachmentInfo> colorAttachments = {
+        std::vector<vk::RenderingAttachmentInfo> uiColorAttachments = {
             vk::RenderingAttachmentInfo(
                 swapchainImageViews.at(imageIndex).get(), // imageView
                 vk::ImageLayout::eColorAttachmentOptimal, // imageLayout
                 vk::ResolveModeFlagBits::eNone,           // resolveMode
                 {},                                       // resolveImageView
                 vk::ImageLayout::eUndefined,              // resolveImageLayout
-                vk::AttachmentLoadOp::eLoad,              // loadOp
+                vk::AttachmentLoadOp::eLoad,              // loadOp - 前の内容を維持
                 vk::AttachmentStoreOp::eStore,            // storeOp
                 vk::ClearValue{}                          // clearValue
-                )};
+            )
+        };
 
-        vk::RenderingInfo renderingInfo(
+        vk::RenderingInfo uiRenderingInfo(
             {},                                              // flags
             vk::Rect2D({0, 0}, {screenWidth, screenHeight}), // renderArea
             1,                                               // layerCount
             0,                                               // viewMask
-            colorAttachments.size(),                         // colorAttachmentCount
-            colorAttachments.data(),                         // pColorAttachments
-            nullptr,                                         // pDepthAttachment
+            uiColorAttachments.size(),                       // colorAttachmentCount
+            uiColorAttachments.data(),                       // pColorAttachments
+            nullptr,                                         // pDepthAttachment - UI描画では不要
             nullptr                                          // pStencilAttachment
         );
-        graphicCommandBuffers.at(0)->beginRendering(renderingInfo);
-    }
-    {
+        
+        graphicCommandBuffers.at(0)->beginRendering(uiRenderingInfo);
+        
+        // UI描画
         graphicCommandBuffers.at(0)->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline2D.get());
         for (const auto &drawInfo : uiImageDrawInfos) {
-            graphicCommandBuffers.at(0)->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline2DLayout.get(), 0, {drawInfo.data->descSet.get()}, {});
-            graphicCommandBuffers.at(0)->pushConstants(pipeline2DLayout.get(), vk::ShaderStageFlagBits::eVertex, 0, sizeof(Render2DPushConstantInfo), &drawInfo.push);
+            graphicCommandBuffers.at(0)->bindDescriptorSets(
+                vk::PipelineBindPoint::eGraphics, 
+                pipeline2DLayout.get(), 
+                0, 
+                {drawInfo.data->descSet.get()}, 
+                {}
+            );
+            graphicCommandBuffers.at(0)->pushConstants(
+                pipeline2DLayout.get(), 
+                vk::ShaderStageFlagBits::eVertex, 
+                0, 
+                sizeof(Render2DPushConstantInfo), 
+                &drawInfo.push
+            );
             graphicCommandBuffers.at(0)->draw(6, 1, 0, 0);
         }
         uiImageDrawInfos.clear();
+        
+        graphicCommandBuffers.at(0)->endRendering();
     }
 
-    graphicCommandBuffers.at(0)->endRendering();
-
-    vk::ImageMemoryBarrier imageMemoryBarrier = createImageMemoryBarrier(swapchainImages.at(imageIndex), vk::ImageLayout::eUndefined, vk::ImageLayout::ePresentSrcKHR, vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eMemoryRead);
+    // ===== レンダリング後のバリア =====
+    // スワップチェーンイメージをプレゼント用に遷移
+    vk::ImageMemoryBarrier presentBarrier = createImageMemoryBarrier(
+        swapchainImages.at(imageIndex), 
+        vk::ImageLayout::eColorAttachmentOptimal, 
+        vk::ImageLayout::ePresentSrcKHR, 
+        vk::AccessFlagBits::eColorAttachmentWrite, 
+        vk::AccessFlagBits::eMemoryRead,
+        vk::ImageAspectFlagBits::eColor
+    );
 
     graphicCommandBuffers.at(0)->pipelineBarrier(
         vk::PipelineStageFlagBits::eColorAttachmentOutput,
@@ -1095,32 +1181,28 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex) {
         {},
         {},
         {},
-        imageMemoryBarrier);
+        presentBarrier
+    );
+
+    // コマンドバッファ完了
     graphicCommandBuffers.at(0)->end();
 
+    // ===== コマンドバッファの実行とプレゼント =====
     vk::CommandBuffer submitCommandBuffer = graphicCommandBuffers.at(0).get();
-    vk::SubmitInfo submitInfo(
-        {},
-        {},
-        {submitCommandBuffer},
-        {});
-
-    // device->waitIdle();
-    // graphicsQueues.at(0).waitIdle();
+    vk::SubmitInfo submitInfo({}, {}, {submitCommandBuffer}, {});
 
     graphicsQueues.at(0).submit({submitInfo});
 
+    // プレゼント設定
     vk::PresentInfoKHR presentInfo;
-
     auto presentSwapchains = {swapchain.get()};
     auto imgIndices = {imageIndex};
-
     presentInfo.swapchainCount = presentSwapchains.size();
     presentInfo.pSwapchains = presentSwapchains.begin();
     presentInfo.pImageIndices = imgIndices.begin();
 
+    // プレゼント実行
     graphicsQueues.at(0).presentKHR(presentInfo);
-
     graphicsQueues.at(0).waitIdle();
 }
 

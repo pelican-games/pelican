@@ -243,6 +243,12 @@ class ModelLoader {
 
   public:
     ModelLoader(ModelDataBase &db, std::filesystem::path file_path) : db{db} {
+        if(!std::filesystem::exists(file_path)) {
+            std::ofstream err("error.txt");
+            err << file_path << " not found";
+        }
+        std::cout << "loading " << file_path << std::endl;
+
         pl::Mesh mesh;
         auto time_s = std::chrono::system_clock::now();
 
@@ -277,6 +283,8 @@ class ModelLoader {
         std::cout << (std::chrono::system_clock::now() - time_s) << std::endl;
 
         p_model = &db.models.front();
+        
+        std::cout << "loading done" << std::endl;
     }
 
     pl::ModelData *getModel() const { return p_model; }

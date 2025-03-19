@@ -39,6 +39,13 @@ namespace pl {
 
     pl::Cursor::Point cursorPos;
     std::optional<pl::Cursor::Point> targetCursorPos;
+    double xoffset_sum = 0, yoffset_sum = 0;
+    double xoffset_sum_onframe = 0, yoffset_sum_onframe = 0;
+
+    void scrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
+        xoffset_sum += xoffset;
+        yoffset_sum += yoffset;
+    }
 
     KeyState cursorLeft, cursorRight;
     pl::Cursor::Point Cursor::getPos() const {
@@ -67,6 +74,13 @@ namespace pl {
     bool Cursor::right_pressed() const{
         return cursorRight.is_pressed;
     }
+    
+    double Cursor::xscroll() const{
+        return xoffset_sum_onframe;
+    }
+    double Cursor::yscroll() const{
+        return yoffset_sum_onframe;
+    }
 
     // 1回だけ呼ばれる
     System::System(unsigned int Windowwidth, unsigned int Windowheight, bool fullScreen) {
@@ -80,6 +94,8 @@ namespace pl {
             glfwTerminate();
             throw std::runtime_error("Failed to create GLFW window");
         }
+
+        glfwSetScrollCallback(window, scrollCallback);
 
         renderer = std::make_unique<VulkanApp>(window, Windowwidth, Windowheight);
 
@@ -124,6 +140,10 @@ namespace pl {
             glfwGetCursorPos(window, &cx, &cy);
             cursorPos = {int(cx), int(cy)};
         }
+        xoffset_sum_onframe = xoffset_sum;
+        xoffset_sum = 0;
+        yoffset_sum_onframe = yoffset_sum;
+        yoffset_sum = 0;
 
         {
             auto old_state = cursorLeft.is_pressed;

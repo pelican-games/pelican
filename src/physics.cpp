@@ -75,6 +75,24 @@ namespace pl {
         return indexes;
     }
 
+    size_t countBallsInDomain(const btVector3& rectCenter, const btVector3& rectScale, const btQuaternion rectRotation, const std::vector<std::unique_ptr<pl::MagneticBall>>& balls) {
+        size_t count = 0;
+        for (size_t i = 0; i < balls.size(); i++) {
+            btVector3 pos = balls[i]->rigidbody->getCenterOfMassPosition();
+
+            pos -= rectCenter;
+
+            const auto p = btQuaternion{pos.x(), pos.y(), pos.z(), 0};
+            const auto p2 = rectRotation.inverse() * p * rectRotation;
+
+            if (abs(p2.x()) < rectScale.x() / 2 &&
+                abs(p2.y()) < rectScale.y() / 2 &&
+                abs(p2.z()) < rectScale.z() / 2)
+                count++;
+        }
+        return count;
+    }
+
     void reverseGravityInDomain(btDiscreteDynamicsWorld* dynamicsWorld, const btVector3& leftBoundaryPoint, const btVector3& rightBoundaryPoint, const std::vector<std::unique_ptr<pl::MagneticBall>>& balls) {
         for (const auto& ball : balls) {
             btVector3 pos = ball->rigidbody->getCenterOfMassPosition();

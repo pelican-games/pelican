@@ -945,13 +945,13 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex) {
     device->resetFences({swapchainImgFence.get()});
     vk::ResultValue acquireResult = device->acquireNextImageKHR(swapchain.get(), UINT64_MAX, {}, swapchainImgFence.get());
 
-    if (acquireResult.result != vk::Result::eSuccess) {
-        throw std::runtime_error("スワップチェーンイメージの取得に失敗しました");
+    if (acquireResult.result != vk::Result::eSuccess && acquireResult.result != vk::Result::eSuboptimalKHR) {
+        throw std::runtime_error("スワップチェーンイメージの取得に失敗しました: " + vk::to_string(acquireResult.result));
     }
     uint32_t imageIndex = acquireResult.value;
 
-    if (device->waitForFences({swapchainImgFence.get()}, VK_TRUE, UINT64_MAX) != vk::Result::eSuccess) {
-        throw std::runtime_error("スワップチェーンイメージの取得に失敗しました");
+    if (auto result = device->waitForFences({swapchainImgFence.get()}, VK_TRUE, UINT64_MAX); result != vk::Result::eSuccess) {
+        throw std::runtime_error("スワップチェーンイメージの取得がタイムアウトしました: " + vk::to_string(acquireResult.result));
     }
 
     // コマンドバッファの準備

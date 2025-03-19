@@ -98,6 +98,10 @@ class VulkanApp : public pl::Renderer {
         std::vector<vk::DeviceQueueCreateInfo> findQueues(std::vector<float> &graphicQueuePriorities, std::vector<float> &computeQueuePriorities);
         uint32_t checkPresentationSupport(vk::SurfaceKHR surface);
         
+        //mipmapの生成
+        void generateMipmaps(vk::CommandBuffer cmdBuffer, vk::Image image, 
+            int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
+
         //イメージの作成
         std::pair <vk::UniqueImage , vk::UniqueDeviceMemory> createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage);
         vk::UniqueImageView createImageView(vk::Image image, vk::Format format, vk::ImageAspectFlags aspectFlags);

@@ -51,6 +51,7 @@ VulkanApp::VulkanApp(GLFWwindow *window, unsigned int screenWidth, unsigned int 
         VK_KHR_SWAPCHAIN_EXTENSION_NAME};
     vk::PhysicalDeviceFeatures deviceFeatures = {}; // DeviceFeaturesの設定
     deviceFeatures.geometryShader = VK_TRUE;
+    deviceFeatures.samplerAnisotropy = VK_TRUE;
 
     // 物理デバイスの選択
     physicalDevice = pickPhysicalDevice(deviceExtensions, deviceFeatures);
@@ -289,16 +290,21 @@ std::vector<vk::DeviceQueueCreateInfo> VulkanApp::findQueues(std::vector<float> 
 
 // イメージの作成
 std::pair<vk::UniqueImage, vk::UniqueDeviceMemory> VulkanApp::createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage) {
+    
+    
+    // ミップレベルの計算
+    uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
+    
     vk::ImageCreateInfo imageCreateInfo(
         {},
         vk::ImageType::e2D,
         format,
         vk::Extent3D(width, height, 1),
-        1,
+        mipLevels,  // 1からミップレベル数に変更
         1,
         vk::SampleCountFlagBits::e1,
         tiling,
-        usage,
+        usage | vk::ImageUsageFlagBits::eTransferSrc, // ミップマップ生成に必要
         vk::SharingMode::eExclusive,
         0,
         nullptr,
@@ -318,13 +324,22 @@ std::pair<vk::UniqueImage, vk::UniqueDeviceMemory> VulkanApp::createImage(uint32
 }
 
 vk::UniqueImageView VulkanApp::createImageView(vk::Image image, vk::Format format, vk::ImageAspectFlags aspectFlags) {
+    // イメージからミップレベルを取得
+    vk::ImageSubresourceRange subresourceRange(
+        aspectFlags,
+        0,                                  // baseMipLevel
+        VK_REMAINING_MIP_LEVELS,            // levelCount - すべてのレベルを使用
+        0,                                  // baseArrayLayer
+        1                                   // layerCount
+    );
+    
     vk::ImageViewCreateInfo viewCreateInfo(
         {},
         image,
         vk::ImageViewType::e2D,
         format,
         vk::ComponentMapping(),
-        vk::ImageSubresourceRange(aspectFlags, 0, 1, 0, 1));
+        subresourceRange);
 
     return device->createImageViewUnique(viewCreateInfo);
 }
@@ -372,23 +387,117 @@ vk::ImageMemoryBarrier VulkanApp::createImageMemoryBarrier(vk::Image image, vk::
     return imageMemoryBarrier;
 }
 
+void VulkanApp::generateMipmaps(vk::CommandBuffer cmdBuffer, vk::Image image, 
+        int32_t texWidth, int32_t texHeight, uint32_t mipLevels) {
+    // ブリットでミップマップを生成
+    vk::ImageMemoryBarrier barrier;
+    barrier.image = image;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+    barrier.subresourceRange.levelCount = 1;
+
+    int32_t mipWidth = texWidth;
+    int32_t mipHeight = texHeight;
+
+    for (uint32_t i = 1; i < mipLevels; i++) {
+        barrier.subresourceRange.baseMipLevel = i - 1;
+        barrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+        barrier.newLayout = vk::ImageLayout::eTransferSrcOptimal;
+        barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+        barrier.dstAccessMask = vk::AccessFlagBits::eTransferRead;
+
+        cmdBuffer.pipelineBarrier(
+            vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, {},{}, {}, barrier
+        );
+
+        vk::ImageBlit blit;
+        blit.srcOffsets[0] = vk::Offset3D(0, 0, 0);
+        blit.srcOffsets[1] = vk::Offset3D(mipWidth, mipHeight, 1);
+        blit.srcSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+        blit.srcSubresource.mipLevel = i - 1;
+        blit.srcSubresource.baseArrayLayer = 0;
+        blit.srcSubresource.layerCount = 1;
+        blit.dstOffsets[0] = vk::Offset3D(0, 0, 0);
+        blit.dstOffsets[1] = vk::Offset3D(mipWidth > 1 ? mipWidth / 2 : 1, 
+                    mipHeight > 1 ? mipHeight / 2 : 1, 1);
+        blit.dstSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+        blit.dstSubresource.mipLevel = i;
+        blit.dstSubresource.baseArrayLayer = 0;
+        blit.dstSubresource.layerCount = 1;
+
+        cmdBuffer.blitImage(
+            image, vk::ImageLayout::eTransferSrcOptimal,
+            image, vk::ImageLayout::eTransferDstOptimal,
+            blit, vk::Filter::eLinear
+        );
+
+        barrier.oldLayout = vk::ImageLayout::eTransferSrcOptimal;
+        barrier.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        barrier.srcAccessMask = vk::AccessFlagBits::eTransferRead;
+        barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+
+        cmdBuffer.pipelineBarrier(
+            vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, {},
+            {}, {}, barrier
+        );
+
+        if (mipWidth > 1) mipWidth /= 2;
+        if (mipHeight > 1) mipHeight /= 2;
+    }
+
+    // 最後のミップレベルをシェーダー読み取り用に変更
+    barrier.subresourceRange.baseMipLevel = mipLevels - 1;
+    barrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+    barrier.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+    barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+    barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+
+    cmdBuffer.pipelineBarrier(
+    vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, {},
+    {}, {}, barrier);
+}
+
 // テクスチャの転送
 void VulkanApp::copyTexture(vk::CommandBuffer commandBuffer, pl::Material &material, vk::Image image, vk::Buffer stagingBuffer, vk::DeviceSize offset, uint32_t width, uint32_t height) {
-    vk::ImageMemoryBarrier imageMemoryBarrier = createImageMemoryBarrier(image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, {}, vk::AccessFlagBits::eTransferWrite);
+    // ミップレベルの計算
+    uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
+    
+    // イメージのレイアウト変更
+    vk::ImageMemoryBarrier imageMemoryBarrier = createImageMemoryBarrier(
+        image, 
+        vk::ImageLayout::eUndefined, 
+        vk::ImageLayout::eTransferDstOptimal, 
+        {}, 
+        vk::AccessFlagBits::eTransferWrite,
+        vk::ImageAspectFlagBits::eColor
+    );
+    
+    // バリアを全ミップレベルに適用
+    imageMemoryBarrier.subresourceRange.levelCount = mipLevels;
+    
+    commandBuffer.pipelineBarrier(
+        vk::PipelineStageFlagBits::eTopOfPipe, 
+        vk::PipelineStageFlagBits::eTransfer, 
+        {}, {}, {}, imageMemoryBarrier
+    );
 
-    commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTransfer, {}, {}, {}, imageMemoryBarrier);
-
+    // バッファからイメージへのコピー
     vk::BufferImageCopy bufferImageCopy(
-        offset,
-        0,
-        0,
+        offset, 0, 0,
         vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, 0, 0, 1),
         vk::Offset3D(0, 0, 0),
-        vk::Extent3D(width, height, 1));
-    commandBuffer.copyBufferToImage(stagingBuffer, image, vk::ImageLayout::eTransferDstOptimal, 1, &bufferImageCopy);
-
-    vk::ImageMemoryBarrier imageMemoryBarrier2 = createImageMemoryBarrier(image, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal, vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead);
-    commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, {}, {}, {}, imageMemoryBarrier2);
+        vk::Extent3D(width, height, 1)
+    );
+    commandBuffer.copyBufferToImage(
+        stagingBuffer, image, vk::ImageLayout::eTransferDstOptimal, 1, &bufferImageCopy
+    );
+    
+    // ミップマップの生成
+    generateMipmaps(commandBuffer, image, width, height, mipLevels);
+    
 }
 
 void VulkanApp::transferTexture(const pl::ModelData &model) {
@@ -405,9 +514,16 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
         std::cout << "Occlusion: " << material.occlusionTextureRaw.has_value() << std::endl;
         std::cout << "Emissive: " << material.emissiveTextureRaw.has_value() << std::endl;
 
+        // 物理デバイスプロパティを一度だけ取得（全テクスチャで共通利用）
+        vk::PhysicalDeviceProperties deviceProperties = physicalDevice.getProperties();
+        float maxAnisotropy = deviceProperties.limits.maxSamplerAnisotropy;
+
         if (material.baseColorTextureRaw.has_value()) {
             textureData.insert(textureData.end(), material.baseColorTextureRaw->data.begin(), material.baseColorTextureRaw->data.end());
-            // material.baseColorTextureRaw->data.clear();
+            // ミップレベルの計算を追加
+            uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(
+                std::max(material.baseColorTextureRaw->width, material.baseColorTextureRaw->height)))) + 1;
+
             if (material.baseColorTextureRaw->bits == 8) {
                 material.baseColorTexture = createImage(material.baseColorTextureRaw->width, material.baseColorTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
                 material.baseColorTextureView = createImageView(material.baseColorTexture.first.get(), vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor);
@@ -415,6 +531,7 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 material.baseColorTexture = createImage(material.baseColorTextureRaw->width, material.baseColorTextureRaw->height, vk::Format::eR16G16B16A16Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
                 material.baseColorTextureView = createImageView(material.baseColorTexture.first.get(), vk::Format::eR16G16B16A16Unorm, vk::ImageAspectFlagBits::eColor);
             }
+
             vk::SamplerCreateInfo samplerCreateInfo(
                 {},
                 material.baseColorTextureRaw->toVkFilter(material.baseColorTextureRaw->magFilter),
@@ -423,13 +540,13 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,
-                0.0f,
-                VK_FALSE,
-                16,
+                0.0f,                         // mipLodBias
+                VK_TRUE,                      // anisotropyEnable を TRUE に
+                maxAnisotropy,                // maxAnisotropy を物理デバイスの上限値に
                 VK_FALSE,
                 vk::CompareOp::eAlways,
-                0.0f,
-                0.0f,
+                0.0f,                         // minLod
+                static_cast<float>(mipLevels), // maxLod - ミップレベル数を設定
                 vk::BorderColor::eFloatOpaqueBlack,
                 VK_FALSE);
             material.baseColorTextureSampler = device->createSamplerUnique(samplerCreateInfo);
@@ -439,10 +556,13 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 material.baseColorTextureView.get(),
                 vk::ImageLayout::eShaderReadOnlyOptimal));
         }
+
         if (material.metallicRoughnessTextureRaw.has_value()) {
-            std::cout << "metallicRoughnessTextureRaw" << std::endl;
             textureData.insert(textureData.end(), material.metallicRoughnessTextureRaw->data.begin(), material.metallicRoughnessTextureRaw->data.end());
-            // material.metallicRoughnessTextureRaw->data.clear();
+            // ミップレベルの計算を追加
+            uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(
+                std::max(material.metallicRoughnessTextureRaw->width, material.metallicRoughnessTextureRaw->height)))) + 1;
+            
             if (material.metallicRoughnessTextureRaw->bits == 8) {
                 material.metallicRoughnessTexture = createImage(material.metallicRoughnessTextureRaw->width, material.metallicRoughnessTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
                 material.metallicRoughnessTextureView = createImageView(material.metallicRoughnessTexture.first.get(), vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor);
@@ -450,6 +570,7 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 material.metallicRoughnessTexture = createImage(material.metallicRoughnessTextureRaw->width, material.metallicRoughnessTextureRaw->height, vk::Format::eR16G16B16A16Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
                 material.metallicRoughnessTextureView = createImageView(material.metallicRoughnessTexture.first.get(), vk::Format::eR16G16B16A16Unorm, vk::ImageAspectFlagBits::eColor);
             }
+
             vk::SamplerCreateInfo samplerCreateInfo(
                 {},
                 material.metallicRoughnessTextureRaw->toVkFilter(material.metallicRoughnessTextureRaw->magFilter),
@@ -458,13 +579,13 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,
-                0.0f,
-                VK_FALSE,
-                16,
+                0.0f,                         // mipLodBias
+                VK_TRUE,                      // anisotropyEnable
+                maxAnisotropy,                // maxAnisotropy
                 VK_FALSE,
                 vk::CompareOp::eAlways,
-                0.0f,
-                0.0f,
+                0.0f,                         // minLod
+                static_cast<float>(mipLevels), // maxLod
                 vk::BorderColor::eFloatOpaqueBlack,
                 VK_FALSE);
             material.metallicRoughnessTextureSampler = device->createSamplerUnique(samplerCreateInfo);
@@ -474,9 +595,13 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 material.metallicRoughnessTextureView.get(),
                 vk::ImageLayout::eShaderReadOnlyOptimal));
         }
+
         if (material.normalTextureRaw.has_value()) {
             textureData.insert(textureData.end(), material.normalTextureRaw->data.begin(), material.normalTextureRaw->data.end());
-            // material.normalTextureRaw->data.clear();
+            // ミップレベルの計算を追加
+            uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(
+                std::max(material.normalTextureRaw->width, material.normalTextureRaw->height)))) + 1;
+            
             if (material.normalTextureRaw->bits == 8) {
                 material.normalTexture = createImage(material.normalTextureRaw->width, material.normalTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
                 material.normalTextureView = createImageView(material.normalTexture.first.get(), vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor);
@@ -484,6 +609,7 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 material.normalTexture = createImage(material.normalTextureRaw->width, material.normalTextureRaw->height, vk::Format::eR16G16B16A16Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
                 material.normalTextureView = createImageView(material.normalTexture.first.get(), vk::Format::eR16G16B16A16Unorm, vk::ImageAspectFlagBits::eColor);
             }
+
             vk::SamplerCreateInfo samplerCreateInfo(
                 {},
                 material.normalTextureRaw->toVkFilter(material.normalTextureRaw->magFilter),
@@ -492,13 +618,13 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,
-                0.0f,
-                VK_FALSE,
-                16,
+                0.0f,                         // mipLodBias
+                VK_TRUE,                      // anisotropyEnable
+                maxAnisotropy,                // maxAnisotropy
                 VK_FALSE,
                 vk::CompareOp::eAlways,
-                0.0f,
-                0.0f,
+                0.0f,                         // minLod
+                static_cast<float>(mipLevels), // maxLod
                 vk::BorderColor::eFloatOpaqueBlack,
                 VK_FALSE);
             material.normalTextureSampler = device->createSamplerUnique(samplerCreateInfo);
@@ -508,9 +634,13 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 material.normalTextureView.get(),
                 vk::ImageLayout::eShaderReadOnlyOptimal));
         }
+
         if (material.occlusionTextureRaw.has_value()) {
             textureData.insert(textureData.end(), material.occlusionTextureRaw->data.begin(), material.occlusionTextureRaw->data.end());
-            // material.occlusionTextureRaw->data.clear();
+            // ミップレベルの計算を追加
+            uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(
+                std::max(material.occlusionTextureRaw->width, material.occlusionTextureRaw->height)))) + 1;
+            
             if (material.occlusionTextureRaw->bits == 8) {
                 material.occlusionTexture = createImage(material.occlusionTextureRaw->width, material.occlusionTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
                 material.occlusionTextureView = createImageView(material.occlusionTexture.first.get(), vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor);
@@ -518,6 +648,7 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 material.occlusionTexture = createImage(material.occlusionTextureRaw->width, material.occlusionTextureRaw->height, vk::Format::eR16G16B16A16Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
                 material.occlusionTextureView = createImageView(material.occlusionTexture.first.get(), vk::Format::eR16G16B16A16Unorm, vk::ImageAspectFlagBits::eColor);
             }
+
             vk::SamplerCreateInfo samplerCreateInfo(
                 {},
                 material.occlusionTextureRaw->toVkFilter(material.occlusionTextureRaw->magFilter),
@@ -526,13 +657,13 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,
-                0.0f,
-                VK_FALSE,
-                16,
+                0.0f,                         // mipLodBias
+                VK_TRUE,                      // anisotropyEnable
+                maxAnisotropy,                // maxAnisotropy
                 VK_FALSE,
                 vk::CompareOp::eAlways,
-                0.0f,
-                0.0f,
+                0.0f,                         // minLod
+                static_cast<float>(mipLevels), // maxLod
                 vk::BorderColor::eFloatOpaqueBlack,
                 VK_FALSE);
             material.occlusionTextureSampler = device->createSamplerUnique(samplerCreateInfo);
@@ -542,9 +673,13 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 material.occlusionTextureView.get(),
                 vk::ImageLayout::eShaderReadOnlyOptimal));
         }
+
         if (material.emissiveTextureRaw.has_value()) {
             textureData.insert(textureData.end(), material.emissiveTextureRaw->data.begin(), material.emissiveTextureRaw->data.end());
-            // material.emissiveTextureRaw->data.clear();
+            // ミップレベルの計算を追加
+            uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(
+                std::max(material.emissiveTextureRaw->width, material.emissiveTextureRaw->height)))) + 1;
+            
             if (material.emissiveTextureRaw->bits == 8) {
                 material.emissiveTexture = createImage(material.emissiveTextureRaw->width, material.emissiveTextureRaw->height, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
                 material.emissiveTextureView = createImageView(material.emissiveTexture.first.get(), vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor);
@@ -552,6 +687,7 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 material.emissiveTexture = createImage(material.emissiveTextureRaw->width, material.emissiveTextureRaw->height, vk::Format::eR16G16B16A16Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
                 material.emissiveTextureView = createImageView(material.emissiveTexture.first.get(), vk::Format::eR16G16B16A16Unorm, vk::ImageAspectFlagBits::eColor);
             }
+
             vk::SamplerCreateInfo samplerCreateInfo(
                 {},
                 material.emissiveTextureRaw->toVkFilter(material.emissiveTextureRaw->magFilter),
@@ -560,13 +696,13 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,
                 vk::SamplerAddressMode::eRepeat,
-                0.0f,
-                VK_FALSE,
-                16,
+                0.0f,                         // mipLodBias
+                VK_TRUE,                      // anisotropyEnable
+                maxAnisotropy,                // maxAnisotropy
                 VK_FALSE,
                 vk::CompareOp::eAlways,
-                0.0f,
-                0.0f,
+                0.0f,                         // minLod
+                static_cast<float>(mipLevels), // maxLod
                 vk::BorderColor::eFloatOpaqueBlack,
                 VK_FALSE);
             material.emissiveTextureSampler = device->createSamplerUnique(samplerCreateInfo);
@@ -598,11 +734,14 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
 
         device->updateDescriptorSets(1, &writeDescriptorSet, 0, nullptr);
 
+        // ステージングバッファの作成とデータ転送
         std::cout << "Texture Data Size: " << textureData.size() * sizeof(uint8_t) << std::endl;
         auto stagingBuffer = createBuffer({}, textureData.size() * sizeof(uint8_t), vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible, vk::SharingMode::eExclusive);
         void *stagingBufferMem = device->mapMemory(stagingBuffer.second.get(), 0, textureData.size() * sizeof(uint8_t));
         std::memcpy(stagingBufferMem, textureData.data(), textureData.size() * sizeof(uint8_t));
+        device->unmapMemory(stagingBuffer.second.get());
 
+        // コマンドバッファの準備
         std::pair<vk::UniqueCommandPool, std::vector<vk::UniqueCommandBuffer>> commandBuffers = createCommandBuffers(vk::CommandPoolCreateFlagBits::eResetCommandBuffer, queueCreateInfos[0], 1);
         vk::CommandBufferBeginInfo beginInfo;
         beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
@@ -610,6 +749,7 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
 
         vk::DeviceSize offset = 0;
 
+        // 各テクスチャのコピーとミップマップ生成
         if (material.baseColorTextureRaw.has_value()) {
             copyTexture(commandBuffers.second[0].get(), material, material.baseColorTexture.first.get(), stagingBuffer.first.get(), offset, material.baseColorTextureRaw->width, material.baseColorTextureRaw->height);
             offset += material.baseColorTextureRaw->data.size() * sizeof(uint8_t);
@@ -631,12 +771,17 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
             offset += material.emissiveTextureRaw->data.size() * sizeof(uint8_t);
         }
 
+        // コマンド実行
         commandBuffers.second[0]->end();
 
         vk::CommandBuffer submitCmdBuf[1] = {commandBuffers.second[0].get()};
         vk::SubmitInfo submitInfo(0, nullptr, nullptr, 1, submitCmdBuf, 0, nullptr);
         graphicsQueues[0].submit(submitInfo, nullptr);
         graphicsQueues[0].waitIdle();
+        
+        // 転送後にテクスチャデータをクリア（オプション）
+        imageInfos.clear();
+        textureData.clear();
     }
 }
 

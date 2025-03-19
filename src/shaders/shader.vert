@@ -17,6 +17,8 @@ layout(location = 10) in vec4 inInstanceMatrix3;
 layout(push_constant) uniform PushConstant {
     mat4 view;
     mat4 proj;
+    vec4 outlineColor;
+    float outlineWidth;
 } push;
 
 layout(location = 0) out vec2 fragmentUV;

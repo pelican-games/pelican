@@ -32,6 +32,7 @@ class Renderer {
     virtual void loadIBL(std::filesystem::path file_path) = 0;
     virtual void drawFrame() = 0;
     virtual void setViewport(int x, int y, int w, int h) = 0;
+    virtual void setLine(glm::vec4 color, float width) = 0;
     virtual ~Renderer() = default;
 };
 

@@ -134,6 +134,7 @@ class VulkanApp : public pl::Renderer {
         pl::Model loadModel(std::filesystem::path file_path, uint32_t max_object_num) override;
         //void loadObject(std::filesystem::path file_path) override;
         void setViewport(int x, int y, int w, int h) override;
+        void setLine(glm::vec4 color, float width) override;
 
         void drawUIImage(const UIImage &image, int x, int y, int texX, int texY, int texW, int texH, float scaleX, float scaleY);
         pl::UIImage loadUIImage(std::filesystem::path file_path);

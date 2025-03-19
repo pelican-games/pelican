@@ -78,10 +78,10 @@ vk::UniquePipeline PipelineBuilder::buildPipeline(vk::Device device, vk::UniqueP
         vk::PolygonMode::eFill,           // polygonMode
         vk::CullModeFlagBits::eNone,      // cullMode
         vk::FrontFace::eClockwise, // frontFace
-        VK_FALSE,                         // depthBiasEnable
-        0.0f,                             // depthBiasConstantFactor
+        VK_TRUE,                         // depthBiasEnable
+        1.5f,                             // depthBiasConstantFactor
         0.0f,                             // depthBiasClamp
-        0.0f,                             // depthBiasSlopeFactor
+        1.5f,                             // depthBiasSlopeFactor
         1.0f                              // lineWidth
     );
 
@@ -144,7 +144,7 @@ vk::UniquePipeline PipelineBuilder::buildPipeline(vk::Device device, vk::UniqueP
     std::vector<vk::PushConstantRange> pushConstantRanges;
 
     vk::PushConstantRange viewProjeMatrix(
-        vk::ShaderStageFlagBits::eVertex, // stageFlags
+        vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eGeometry | vk::ShaderStageFlagBits::eFragment, // stageFlags
         0,                                // offset
         sizeof(pl::VPMatrix)                // size
     );

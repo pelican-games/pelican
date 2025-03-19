@@ -3,3 +3,4 @@ src/shaders/shader.frag.spv
 src/shaders/shader.vert.spv
 src/shaders/shader2d.frag.spv
 src/shaders/shader2d.vert.spv
+src/shaders/shader.geom.spv

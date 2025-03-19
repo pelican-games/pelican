@@ -126,11 +126,13 @@ VulkanApp::VulkanApp(GLFWwindow *window, unsigned int screenWidth, unsigned int 
 
     // シェーダーモジュールの作成
     vk::UniqueShaderModule vertShaderModule = createShaderModule("src/shaders/shader.vert.spv");
+    vk::UniqueShaderModule geomShaderModule = createShaderModule("src/shaders/shader.geom.spv");
     vk::UniqueShaderModule fragShaderModule = createShaderModule("src/shaders/shader.frag.spv");
 
     // パイプラインの作成
     std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = {
         vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eVertex, vertShaderModule.get(), "main"),
+        vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eGeometry, geomShaderModule.get(), "main"),
         vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eFragment, fragShaderModule.get(), "main")};
 
     pipelineBuilder = std::make_unique<PipelineBuilder>();
@@ -869,7 +871,7 @@ void VulkanApp::drawGBuffer(uint32_t objectIndex) {
 
     graphicCommandBuffers.at(0)->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get());
 
-    graphicCommandBuffers.at(0)->pushConstants(pipelineLayout.get(), vk::ShaderStageFlagBits::eVertex, 0, sizeof(vpMatrix), &vpMatrix);
+    graphicCommandBuffers.at(0)->pushConstants(pipelineLayout.get(), vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eGeometry |vk::ShaderStageFlagBits::eFragment, 0, sizeof(vpMatrix), &vpMatrix);
 
     for (auto &model : modelDb.models) {
         if (model.instanceAttributes.empty())
@@ -987,6 +989,11 @@ void VulkanApp::setCamera(glm::vec3 pos, glm::vec3 dir, glm::vec3 up) {
 
 void VulkanApp::setProjection(float horizontalAngle, float near, float far) {
     vpMatrix.projection = glm::perspective(glm::radians(horizontalAngle), static_cast<float>(viewport3d.width) / static_cast<float>(viewport3d.height), near, far);
+}
+
+void VulkanApp::setLine(glm::vec4 color, float width) {
+    vpMatrix.lineColor = color;
+    vpMatrix.lineWidth = width;
 }
 
 void VulkanApp::drawModel(const Model &model, glm::mat4x4 modelMatrix) {

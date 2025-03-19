@@ -10,7 +10,7 @@ layout(location = 1) in vec3 fragmentPos;
 layout(location = 2) in vec3 fragmentNormal;
 layout(location = 3) in vec3 fragmentTangent;
 layout(location = 4) in vec3 fragmentBitangent;
-
+layout(location = 5) in flat int isOutline;
 
 layout(set = 0, binding = 0) uniform sampler2D texSampler;
 layout(set = 0, binding = 1) uniform sampler2D specularSampler;
@@ -22,6 +22,13 @@ layout(set = 0, binding = 4) uniform sampler2D emissiveSampler;
 layout(set = 0, binding = 5) uniform samplerCube irradianceMap;
 layout(set = 0, binding = 6) uniform samplerCube prefilteredMap;
 layout(set = 0, binding = 7) uniform sampler2D brdfLUT;
+
+layout(push_constant) uniform PushConstant {
+    mat4 view;
+    mat4 proj;
+    vec4 outlineColor;
+    float outlineWidth;
+} push;
 
 struct PointLight {
     vec3 position;
@@ -79,6 +86,11 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0) {
 }
 
 void main() {
+    if(isOutline == 1) {
+        outColor = push.outlineColor;
+        return;
+    }
+
     // テクスチャデータの取得
     vec4 texColor = texture(texSampler, fragmentUV);
     vec4 normalColor = texture(normalSampler, fragmentUV);

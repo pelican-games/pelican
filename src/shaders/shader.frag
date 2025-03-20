@@ -37,7 +37,7 @@ const PointLight lights[LIGHT_COUNT] = PointLight[](
     PointLight(
         vec3(0.0, 5.0, 5.0),  // 位置
         vec3(1.0, 0.0, 0.0),  // 暖色系の光
-        80.0                  // 強度
+        10000                  // 強度
     ),
     // 光源2: 左側
     PointLight(
@@ -49,7 +49,7 @@ const PointLight lights[LIGHT_COUNT] = PointLight[](
     PointLight(
         vec3(0.0, 5.0, -2.0), // 位置
         vec3(0.0, 1.0, 0.4314),  // 赤っぽい光
-        60.0                  // 強度
+        10000.0                  // 強度
     )
 );
 
@@ -190,8 +190,8 @@ void main() {
     }
     
     // 環境光の詳細制御
-    float ambientIntensity = 0.03;  // わずかな環境光を追加
-    float reflectionIntensity = 0.0;
+    float ambientIntensity = 1;  // わずかな環境光を追加
+    float reflectionIntensity = 1;
 
     // 拡散環境光
     vec3 ambientDiffuse = vec3(ambientIntensity) * albedo * (1.0 - metallic);
@@ -201,7 +201,7 @@ void main() {
     vec3 ambient = ambientDiffuse + ambientSpecular;
     
     // エミッシブ
-    vec3 emission = emissiveColor.rgb * emissiveColor.a;
+    vec3 emission = emissiveColor.rgb * 1;
     
     // 最終カラーの計算
     vec3 color = ambient + Lo + emission;
@@ -213,5 +213,5 @@ void main() {
     color = pow(color, vec3(1.0/2.2));
     
     // 出力
-    outColor = vec4(color, texColor.a);
+    outColor = vec4(color, 1.0);
 }

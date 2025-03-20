@@ -8,7 +8,7 @@ int main() {
         std::cout << "Renderer loaded" << std::endl;
         //pl::Model test_model = renderer.loadModel("example/assets/rewrite.glb");
         //std::cout << "Model loaded" << std::endl;
-        pl::Model test_model2 = renderer.loadModel("example/assets/DamagedHelmet.glb");
+        pl::Model test_model2 = renderer.loadModel("example/assets/gimmicks/Button_export_red.glb");
         std::cout << "Model loaded" << std::endl;
         //pl::Model test_model3 = renderer.loadModel("example/assets/AntiqueCamera.glb");
         //std::cout << "Model loaded" << std::endl;
@@ -18,7 +18,7 @@ int main() {
 
         float theta = 0;
 
-        renderer.setViewport(0, 0, 960, 540);
+        renderer.setViewport(0, 0, 1920, 1080);
 
         while(sys.frameUpdate()) {
             theta += 0.001f;
@@ -27,7 +27,7 @@ int main() {
             renderer.setProjection(45.0);
             renderer.setLine(glm::vec4(1.0, 0.0, 0.0, 1.0), 0.01);
             //renderer.drawModel(test_model, glm::identity<glm::mat4>());
-            glm::mat4 model_matrix = glm::scale(glm::identity<glm::mat4>(), glm::vec3(3)); 
+            glm::mat4 model_matrix = glm::scale(glm::identity<glm::mat4>(), glm::vec3(0.3)); 
             renderer.drawModel(test_model2, model_matrix);
             //renderer.drawModel(test_model3, glm::identity<glm::mat4>());
             renderer.drawUIImage(test_image, 0, 0, 0, 0, 250, 200, 1.0, 1.0);

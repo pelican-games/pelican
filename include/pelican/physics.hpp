@@ -44,6 +44,26 @@ namespace pl {
         btCollisionDispatcher* dispatcher,
         btSequentialImpulseConstraintSolver* solver);
 
+
+    template<class F>
+    void applyProcessInDomain(
+        btDiscreteDynamicsWorld* dynamicsWorld,
+        const btVector3& rectCenter, const btVector3& rectScale, const btQuaternion rectRotation,
+        const std::vector<std::unique_ptr<pl::MagneticBall>>& balls, F&& f) {
+        for (auto& ball : balls) {
+            btVector3 pos = ball->rigidbody->getCenterOfMassPosition();
+
+            pos -= rectCenter;
+
+            const auto p2 = quatRotate(rectRotation.inverse(), pos);
+
+            if (abs(p2.x()) < rectScale.x() / 2 &&
+                abs(p2.y()) < rectScale.y() / 2 &&
+                abs(p2.z()) < rectScale.z() / 2)
+                f(ball);
+        }
+    }
+
     void setGravityInDomain(
         btDiscreteDynamicsWorld* dynamicsWorld,
         const btVector3& rectCenter, const btVector3& rectScale, const btQuaternion rectRotation,

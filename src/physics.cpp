@@ -82,8 +82,7 @@ namespace pl {
 
             pos -= rectCenter;
 
-            const auto p = btQuaternion{pos.x(), pos.y(), pos.z(), 0};
-            const auto p2 = rectRotation.inverse() * p * rectRotation;
+            const auto p2 = quatRotate(rectRotation.inverse(), pos);
 
             if (abs(p2.x()) < rectScale.x() / 2 &&
                 abs(p2.y()) < rectScale.y() / 2 &&

@@ -15,9 +15,12 @@ namespace pl {
         float radius;
         float magneticStrength;
         int polarity;
+        btVector3 addtionalAccel;
 
         MagneticBall(btDiscreteDynamicsWorld* dynamicsWorld, float strength, float mas, float rad, int pol);
         ~MagneticBall();
+        
+        void setAddtionalAccelaration(btVector3 a);
     };
 
     struct Boxdata {
@@ -41,7 +44,12 @@ namespace pl {
         btCollisionDispatcher* dispatcher,
         btSequentialImpulseConstraintSolver* solver);
 
-    void reverseGravityInDomain(btDiscreteDynamicsWorld* dynamicsWorld, const btVector3& leftBoundaryPoint, const btVector3& rightBoundaryPoint, const std::vector<std::unique_ptr<pl::MagneticBall>>& balls);
+    void setGravityInDomain(
+        btDiscreteDynamicsWorld* dynamicsWorld,
+        const btVector3& rectCenter, const btVector3& rectScale, const btQuaternion rectRotation,
+        const std::vector<std::unique_ptr<pl::MagneticBall>>& balls,
+        const btVector3 accel);
+    void applyGravity(const std::vector<std::unique_ptr<pl::MagneticBall>>& balls);
 
     void moveKinematicModel(btRigidBody* rigidBody, const btVector3& newPosition);
 

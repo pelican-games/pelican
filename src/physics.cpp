@@ -18,12 +18,18 @@ namespace pl {
         btRigidBody::btRigidBodyConstructionInfo bodyCI(mass, motionState, shape, localInertia);
         rigidbody = new btRigidBody(bodyCI);
         world->addRigidBody(rigidbody);
+
+        addtionalAccel = {0, 0, -9.8};
     }
 
     MagneticBall::~MagneticBall() {
         delete rigidbody->getMotionState();
         delete rigidbody->getCollisionShape();
         delete rigidbody;
+    }
+
+    void MagneticBall::setAddtionalAccelaration(btVector3 a) {
+        addtionalAccel = a;
     }
 
     void setupWorld(btDiscreteDynamicsWorld*& dynamicsWorld, btBroadphaseInterface*& broadphase,
@@ -35,7 +41,7 @@ namespace pl {
         solver = new btSequentialImpulseConstraintSolver();
 
         dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
-        dynamicsWorld->setGravity(btVector3(0, 0, -9.8));
+        dynamicsWorld->setGravity(btVector3(0, 0, 0));
     }
 
     void resetBall(MagneticBall& ball, const btVector3& resetPoint) {
@@ -92,16 +98,28 @@ namespace pl {
         return count;
     }
 
-    void reverseGravityInDomain(btDiscreteDynamicsWorld* dynamicsWorld, const btVector3& leftBoundaryPoint, const btVector3& rightBoundaryPoint, const std::vector<std::unique_ptr<pl::MagneticBall>>& balls) {
-        for (const auto& ball : balls) {
+    void setGravityInDomain(
+        btDiscreteDynamicsWorld* dynamicsWorld,
+        const btVector3& rectCenter, const btVector3& rectScale, const btQuaternion rectRotation,
+        const std::vector<std::unique_ptr<pl::MagneticBall>>& balls,
+        const btVector3 accel) {
+        for (auto& ball : balls) {
             btVector3 pos = ball->rigidbody->getCenterOfMassPosition();
-            if (pos.getX() >= leftBoundaryPoint.getX() && pos.getX() <= rightBoundaryPoint.getX() &&
-                pos.getY() >= leftBoundaryPoint.getY() && pos.getY() <= rightBoundaryPoint.getY() &&
-                pos.getZ() >= leftBoundaryPoint.getZ() && pos.getZ() <= rightBoundaryPoint.getZ()) {
-                ball->rigidbody->applyCentralForce(btVector3(0, 0, 2 * 9.8));
-            }
+
+            pos -= rectCenter;
+
+            const auto p2 = quatRotate(rectRotation.inverse(), pos);
+
+            if (abs(p2.x()) < rectScale.x() / 2 &&
+                abs(p2.y()) < rectScale.y() / 2 &&
+                abs(p2.z()) < rectScale.z() / 2)
+                ball->setAddtionalAccelaration(accel);
         }
-        dynamicsWorld->setGravity(btVector3(0, 0, -9.8));
+    }
+    void applyGravity(const std::vector<std::unique_ptr<pl::MagneticBall>>& balls) {
+        for (auto& ball : balls) {
+            ball->rigidbody->applyCentralForce(ball->addtionalAccel);
+        }
     }
 
     bool isObjectInDirection(btDiscreteDynamicsWorld* dynamicsWorld, const btVector3& origin, const btVector3& direction, float distance) {

@@ -1445,6 +1445,7 @@ void VulkanApp::drawModel(const Model &model, glm::mat4x4 modelMatrix) {
     attr.model = modelMatrix;
     attr.lineColor = vpMatrix.lineColor;
     attr.lineWidth = vpMatrix.lineWidth;
+    attr.subColor = glm::vec4{1.0, 0.0, 0.0, 1.0};
     model.pDat->instanceAttributes.push_back(attr);
 }
 

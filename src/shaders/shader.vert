@@ -15,6 +15,7 @@ layout(location = 9) in vec4 inInstanceMatrix2;
 layout(location = 10) in vec4 inInstanceMatrix3;
 layout(location = 11) in vec4 outlineColor;
 layout(location = 12) in float outlineWidth;
+layout(location = 13) in vec4 subColor;
 
 layout(push_constant) uniform PushConstant {
     mat4 view;
@@ -28,6 +29,7 @@ layout(location = 3) out vec3 worldTangent;
 layout(location = 4) out vec3 worldBitangent;
 layout(location = 5) out vec4 geomOutlineColor;
 layout(location = 6) out float geomOutlineWidth;
+layout(location = 7) out vec4 geomSubColor;
 
 void main() {
 
@@ -56,4 +58,5 @@ void main() {
 
     geomOutlineColor = outlineColor;
     geomOutlineWidth = outlineWidth;
+    geomSubColor = subColor;
 }

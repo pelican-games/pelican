@@ -10,6 +10,7 @@ layout(location = 3) in vec3 fragmentTangent;
 layout(location = 4) in vec3 fragmentBitangent;
 layout(location = 5) in flat int isOutline;
 layout(location = 6) in vec4 inOutlineColor;
+layout(location = 7) in vec4 inSubColor;
 
 layout(set = 0, binding = 0) uniform sampler2D texSampler;
 layout(set = 0, binding = 1) uniform sampler2D specularSampler;
@@ -109,7 +110,7 @@ void main() {
     }
 
     // テクスチャデータの取得
-    vec4 texColor = texture(texSampler, fragmentUV);
+    vec4 texColor = texture(texSampler, fragmentUV) * inSubColor;
     vec4 normalColor = texture(normalSampler, fragmentUV);
     vec4 specularColor = texture(specularSampler, fragmentUV);
     vec4 emissiveColor = texture(emissiveSampler, fragmentUV);

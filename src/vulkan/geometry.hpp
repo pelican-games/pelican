@@ -154,6 +154,7 @@ struct InstanceAttribute {
     glm::mat4 model;
     glm::vec4 lineColor;
     float lineWidth;
+    glm::vec4 subColor;
 };
 
 struct InstanceUpdate {
@@ -179,6 +180,7 @@ struct Object {
             vk::VertexInputAttributeDescription(10, 1, vk::Format::eR32G32B32A32Sfloat, 3 * sizeof(glm::vec4)),
             vk::VertexInputAttributeDescription(11, 1, vk::Format::eR32G32B32A32Sfloat, offsetof(InstanceAttribute, lineColor)),
             vk::VertexInputAttributeDescription(12, 1, vk::Format::eR32Sfloat, offsetof(InstanceAttribute, lineWidth)),
+            vk::VertexInputAttributeDescription(13, 1, vk::Format::eR32G32B32A32Sfloat, offsetof(InstanceAttribute, subColor)),
         };
     }
 };

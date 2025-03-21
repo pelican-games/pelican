@@ -14,6 +14,7 @@ layout(location = 3) in vec3 inWorldTangent[];
 layout(location = 4) in vec3 inWorldBitangent[];
 layout(location = 5) in vec4 inOutlineColor[];
 layout(location = 6) in float inOutlineWidth[];
+layout(location = 7) in vec4 inSubColor[];
 
 // 出力変数（フラグメントシェーダーへの入力）
 layout(location = 0) out vec2 outFragmentUV;
@@ -23,6 +24,7 @@ layout(location = 3) out vec3 outWorldTangent;
 layout(location = 4) out vec3 outWorldBitangent;
 layout(location = 5) out flat int outIsOutline;  // 新しい出力: アウトラインかどうか
 layout(location = 6) out vec4 outOutlineColor;
+layout(location = 7) out vec4 outSubColor;
 
 // プッシュコンスタント（既存の構造体を拡張）
 layout(push_constant) uniform PushConstant {
@@ -53,6 +55,7 @@ void main() {
             outWorldBitangent = inWorldBitangent[i];
             outIsOutline = 1;  // アウトライン
             outOutlineColor = inOutlineColor[i];
+            outSubColor = inSubColor[i];
             
             // スケーリングではなく頂点法線方向に押し出す
             vec4 pos = gl_in[i].gl_Position;
@@ -79,6 +82,7 @@ void main() {
         outWorldTangent = inWorldTangent[i];
         outWorldBitangent = inWorldBitangent[i];
         outIsOutline = 0;  // 通常のポリゴン
+        outSubColor = inSubColor[i];
         gl_Position = gl_in[i].gl_Position;
         EmitVertex();
     }

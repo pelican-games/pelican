@@ -36,8 +36,8 @@ const PointLight lights[LIGHT_COUNT] = PointLight[](
     // 光源1: 正面上
     PointLight(
         vec3(0.0, 5.0, 5.0),  // 位置
-        vec3(1.0, 0.0, 0.0),  // 暖色系の光
-        10000                  // 強度
+        vec3(1.0, 1.0, 1.0),  // 暖色系の光
+        10                  // 強度
     ),
     // 光源2: 左側
     PointLight(
@@ -48,8 +48,8 @@ const PointLight lights[LIGHT_COUNT] = PointLight[](
     // 光源3: 右側
     PointLight(
         vec3(0.0, 5.0, -2.0), // 位置
-        vec3(0.0, 1.0, 0.4314),  // 赤っぽい光
-        10000.0                  // 強度
+        vec3(1.0, 1.0, 1.0),  // 赤っぽい光
+        10.0                  // 強度
     )
 );
 
@@ -134,7 +134,7 @@ void main() {
     }
 
     // glTF-PBRの標準に合わせて修正
-    float metallic = specularColor.b;   // Bチャンネルに金属度
+    float metallic = 1-specularColor.b;   // Bチャンネルに金属度
     float roughness = specularColor.g;  // Gチャンネルに粗さ
 
     // 低すぎるとスペキュラーがほぼ見えないため、最小値を設定

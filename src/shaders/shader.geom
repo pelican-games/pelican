@@ -12,6 +12,8 @@ layout(location = 1) in vec3 inWorldPos[];
 layout(location = 2) in vec3 inWorldNormal[];
 layout(location = 3) in vec3 inWorldTangent[];
 layout(location = 4) in vec3 inWorldBitangent[];
+layout(location = 5) in vec4 inOutlineColor[];
+layout(location = 6) in float inOutlineWidth[];
 
 // 出力変数（フラグメントシェーダーへの入力）
 layout(location = 0) out vec2 outFragmentUV;
@@ -20,13 +22,12 @@ layout(location = 2) out vec3 outWorldNormal;
 layout(location = 3) out vec3 outWorldTangent;
 layout(location = 4) out vec3 outWorldBitangent;
 layout(location = 5) out flat int outIsOutline;  // 新しい出力: アウトラインかどうか
+layout(location = 6) out vec4 outOutlineColor;
 
 // プッシュコンスタント（既存の構造体を拡張）
 layout(push_constant) uniform PushConstant {
     mat4 view;
     mat4 proj;
-    vec4 outlineColor;    // 追加: アウトライン色
-    float outlineWidth;   // 追加: アウトライン幅
 } push;
 
 void main() {
@@ -51,6 +52,7 @@ void main() {
             outWorldTangent = inWorldTangent[i];
             outWorldBitangent = inWorldBitangent[i];
             outIsOutline = 1;  // アウトライン
+            outOutlineColor = inOutlineColor[i];
             
             // スケーリングではなく頂点法線方向に押し出す
             vec4 pos = gl_in[i].gl_Position;
@@ -58,7 +60,7 @@ void main() {
             
             // NDC空間で一定幅になるよう調整
             vec3 viewNormal = normalize((push.view * vec4(normal, 0.0)).xyz);
-            vec4 extrudedPos = pos + vec4(viewNormal.xy * push.outlineWidth * pos.w, 0.0, 0.0);
+            vec4 extrudedPos = pos + vec4(viewNormal.xy * inOutlineWidth[i] * pos.w, 0.0, 0.0);
             
             // 深度値を遠くに移動（Z-fightingの防止）- 値を大きくする
             extrudedPos.z += 0.005 * extrudedPos.w; // 0.001から0.005に増加

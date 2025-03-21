@@ -13,12 +13,12 @@ layout(location = 7) in vec4 inInstanceMatrix0;
 layout(location = 8) in vec4 inInstanceMatrix1;
 layout(location = 9) in vec4 inInstanceMatrix2;
 layout(location = 10) in vec4 inInstanceMatrix3;
+layout(location = 11) in vec4 outlineColor;
+layout(location = 12) in float outlineWidth;
 
 layout(push_constant) uniform PushConstant {
     mat4 view;
     mat4 proj;
-    vec4 outlineColor;
-    float outlineWidth;
 } push;
 
 layout(location = 0) out vec2 fragmentUV;
@@ -26,6 +26,8 @@ layout(location = 1) out vec3 worldPos;
 layout(location = 2) out vec3 worldNormal;
 layout(location = 3) out vec3 worldTangent;
 layout(location = 4) out vec3 worldBitangent;
+layout(location = 5) out vec4 geomOutlineColor;
+layout(location = 6) out float geomOutlineWidth;
 
 void main() {
 
@@ -51,4 +53,7 @@ void main() {
     worldPos = (instanceMatrix * vec4(inPos, 1.0)).xyz;
     
     fragmentUV = inUV;
+
+    geomOutlineColor = outlineColor;
+    geomOutlineWidth = outlineWidth;
 }

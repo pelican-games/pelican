@@ -9,6 +9,7 @@ layout(location = 2) in vec3 fragmentNormal;
 layout(location = 3) in vec3 fragmentTangent;
 layout(location = 4) in vec3 fragmentBitangent;
 layout(location = 5) in flat int isOutline;
+layout(location = 6) in vec4 inOutlineColor;
 
 layout(set = 0, binding = 0) uniform sampler2D texSampler;
 layout(set = 0, binding = 1) uniform sampler2D specularSampler;
@@ -56,8 +57,6 @@ const PointLight lights[LIGHT_COUNT] = PointLight[](
 layout(push_constant) uniform PushConstant {
     mat4 view;
     mat4 proj;
-    vec4 outlineColor;
-    float outlineWidth;
 } push;
 
 const float PI = 3.14159265359;
@@ -105,7 +104,7 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0) {
 
 void main() {
     if(isOutline == 1) {
-        outColor = push.outlineColor;
+        outColor = inOutlineColor;
         return;
     }
 

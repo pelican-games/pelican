@@ -8,8 +8,9 @@
 
 namespace pl {
 
-VulkanApp::VulkanApp(GLFWwindow *window, unsigned int screenWidth, unsigned int screenHeight)
-    : window(window), screenWidth{screenWidth}, screenHeight{screenHeight} {
+VulkanApp::VulkanApp(GLFWwindow *window, unsigned int screenWidth, unsigned int screenHeight, unsigned int virtualScreenWidth, unsigned int virtualScreenHeight)
+    : window(window), screenWidth{screenWidth}, screenHeight{screenHeight},
+    virtualScreenWidth{virtualScreenWidth}, virtualScreenHeight{virtualScreenHeight} {
     std::cout << "Vulkan Header Version: " << VK_HEADER_VERSION << std::endl;
 
     // APIバージョンのプリント（ヘッダーで定義された最新のAPIバージョンを表示）
@@ -1451,8 +1452,8 @@ pl::UIImage VulkanApp::loadUIImage(std::filesystem::path file_path) {
 }
 void VulkanApp::drawUIImage(const UIImage &image, int x, int y, int texX, int texY, int texW, int texH, float scaleX, float scaleY) {
     Render2DPushConstantInfo push;
-    push.tl = {x * 2.0f / screenWidth - 1.0f, y * 2.0f / screenHeight - 1.0f};
-    push.sz = {2.0f * scaleX * texW / screenWidth, 2.0f * scaleY * texH / screenHeight};
+    push.tl = {x * 2.0f / virtualScreenWidth - 1.0f, y * 2.0f / virtualScreenHeight - 1.0f};
+    push.sz = {2.0f * scaleX * texW / virtualScreenWidth, 2.0f * scaleY * texH / virtualScreenHeight};
     push.texclip_tl = {texX / image.pDat->width, texY / image.pDat->height};
     push.texclip_sz = {texW / image.pDat->width, texH / image.pDat->height};
     uiImageDrawInfos.push_back({image.pDat, push});
@@ -1463,10 +1464,13 @@ void VulkanApp::loadIBL(std::filesystem::path file_path){
 }
 
 void VulkanApp::setViewport(int x, int y, int w, int h) {
+    auto monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+    
     viewport3d.x = x;
     viewport3d.y = y;
-    viewport3d.width = w;
-    viewport3d.height = h;
+    viewport3d.width = w * screenWidth / virtualScreenWidth;
+    viewport3d.height = h * screenHeight / virtualScreenHeight;
     viewport3d.minDepth = 0.0;
     viewport3d.maxDepth = 1.0;
 }

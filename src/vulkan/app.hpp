@@ -14,6 +14,7 @@ namespace pl {
 
 class VulkanApp : public pl::Renderer {
         unsigned int screenWidth, screenHeight;
+        unsigned int virtualScreenWidth, virtualScreenHeight;
         GLFWwindow* window;
 
         vk::UniqueInstance instance;
@@ -26,7 +27,7 @@ class VulkanApp : public pl::Renderer {
         pl::VPMatrix vpMatrix;
 
     public:
-        VulkanApp(GLFWwindow* window, unsigned int screenWidth, unsigned int screenHeight);
+        VulkanApp(GLFWwindow* window, unsigned int screenWidth, unsigned int screenHeight, unsigned int virtualScreenWidth, unsigned int virtualScreenHeight);
         ~VulkanApp() override;
 
     private:

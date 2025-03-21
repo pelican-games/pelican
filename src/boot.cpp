@@ -89,15 +89,36 @@ namespace pl {
         }
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        window = glfwCreateWindow(Windowwidth, Windowheight, "Pelican Vulkan Window", fullScreen ? glfwGetPrimaryMonitor() : nullptr, nullptr);
-        if (!window) {
-            glfwTerminate();
-            throw std::runtime_error("Failed to create GLFW window");
+
+        if(fullScreen) {
+            auto monitor = glfwGetPrimaryMonitor();
+
+            const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+
+            glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+
+            window = glfwCreateWindow(mode->width, mode->height, "Pelican Vulkan Window", nullptr, nullptr);
+
+            if (!window) {
+                glfwTerminate();
+                throw std::runtime_error("Failed to create GLFW window");
+            }
+
+            glfwSetScrollCallback(window, scrollCallback);
+
+            renderer = std::make_unique<VulkanApp>(window, mode->width, mode->height, Windowwidth, Windowheight);
+        } else {
+            window = glfwCreateWindow(Windowwidth, Windowheight, "Pelican Vulkan Window", nullptr, nullptr);
+
+            if (!window) {
+                glfwTerminate();
+                throw std::runtime_error("Failed to create GLFW window");
+            }
+
+            glfwSetScrollCallback(window, scrollCallback);
+
+            renderer = std::make_unique<VulkanApp>(window, Windowwidth, Windowheight, Windowwidth, Windowheight);
         }
-
-        glfwSetScrollCallback(window, scrollCallback);
-
-        renderer = std::make_unique<VulkanApp>(window, Windowwidth, Windowheight);
 
         base_time = std::chrono::system_clock::now();
     }

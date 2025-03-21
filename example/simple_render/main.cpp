@@ -8,7 +8,7 @@ int main() {
         std::cout << "Renderer loaded" << std::endl;
         //pl::Model test_model = renderer.loadModel("example/assets/rewrite.glb");
         //std::cout << "Model loaded" << std::endl;
-        pl::Model test_model2 = renderer.loadModel("example/assets/gimmicks/ball.glb");
+        pl::Model test_model2 = renderer.loadModel("example/assets/gimmicks/1-1_view.glb");
         std::cout << "Model loaded" << std::endl;
         //pl::Model test_model3 = renderer.loadModel("example/assets/AntiqueCamera.glb");
         //std::cout << "Model loaded" << std::endl;

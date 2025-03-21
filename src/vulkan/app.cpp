@@ -512,6 +512,13 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
     std::vector<vk::DescriptorPoolSize> descriptorPoolSizes;
     std::vector<vk::DescriptorImageInfo> imageInfos;
 
+    // ダミーテクスチャデータ（各種テクスチャタイプに対応）
+    uint8_t defaultBaseColorPixels[4] = { 255, 255, 255, 255 };        // 白色 (baseColor用)
+    uint8_t defaultMetallicRoughnessPixels[4] = { 0, 128, 0, 255 };    // 非金属、中程度粗さ
+    uint8_t defaultNormalPixels[4] = { 128, 128, 255, 255 };           // 上向き法線
+    uint8_t defaultOcclusionPixels[4] = { 255, 255, 255, 255 };        // 遮蔽なし
+    uint8_t defaultEmissivePixels[4] = { 0, 0, 0, 255 };               // 発光なし
+
     for (auto p_material : model.used_materials) {
         auto &material = *p_material;
 
@@ -525,9 +532,11 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
         vk::PhysicalDeviceProperties deviceProperties = physicalDevice.getProperties();
         float maxAnisotropy = deviceProperties.limits.maxSamplerAnisotropy;
 
+        // === BaseColorテクスチャの処理 ===
         if (material.baseColorTextureRaw.has_value()) {
+            // 通常のテクスチャ処理
             textureData.insert(textureData.end(), material.baseColorTextureRaw->data.begin(), material.baseColorTextureRaw->data.end());
-            // ミップレベルの計算を追加
+            
             uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(
                 std::max(material.baseColorTextureRaw->width, material.baseColorTextureRaw->height)))) + 1;
 
@@ -557,16 +566,51 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 vk::BorderColor::eFloatOpaqueBlack,
                 VK_FALSE);
             material.baseColorTextureSampler = device->createSamplerUnique(samplerCreateInfo);
-
-            imageInfos.push_back(vk::DescriptorImageInfo(
-                material.baseColorTextureSampler.get(),
-                material.baseColorTextureView.get(),
-                vk::ImageLayout::eShaderReadOnlyOptimal));
+        } else {
+            // ダミーテクスチャを作成
+            std::cout << "BaseColorテクスチャにダミーテクスチャを使用します" << std::endl;
+            
+            // データを追加
+            textureData.insert(textureData.end(), defaultBaseColorPixels, defaultBaseColorPixels + 4);
+            
+            // 1x1ピクセルのテクスチャを作成
+            material.baseColorTexture = createImage(1, 1, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, 
+                                                   vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
+            material.baseColorTextureView = createImageView(material.baseColorTexture.first.get(), 
+                                                           vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor);
+            
+            // サンプラー作成
+            vk::SamplerCreateInfo samplerCreateInfo(
+                {},
+                vk::Filter::eLinear,         // magFilter
+                vk::Filter::eLinear,         // minFilter
+                vk::SamplerMipmapMode::eLinear,
+                vk::SamplerAddressMode::eRepeat,
+                vk::SamplerAddressMode::eRepeat,
+                vk::SamplerAddressMode::eRepeat,
+                0.0f,                        // mipLodBias
+                VK_TRUE,                     // anisotropyEnable
+                maxAnisotropy,               // maxAnisotropy
+                VK_FALSE,
+                vk::CompareOp::eAlways,
+                0.0f,                        // minLod
+                1.0f,                        // maxLod - ダミーテクスチャは1レベルのみ
+                vk::BorderColor::eFloatOpaqueBlack,
+                VK_FALSE);
+            material.baseColorTextureSampler = device->createSamplerUnique(samplerCreateInfo);
         }
+        
+        // 共通処理：イメージ情報をデスクリプタに追加
+        imageInfos.push_back(vk::DescriptorImageInfo(
+            material.baseColorTextureSampler.get(),
+            material.baseColorTextureView.get(),
+            vk::ImageLayout::eShaderReadOnlyOptimal));
 
+        // === MetallicRoughnessテクスチャの処理 ===
         if (material.metallicRoughnessTextureRaw.has_value()) {
+            // 通常のテクスチャ処理
             textureData.insert(textureData.end(), material.metallicRoughnessTextureRaw->data.begin(), material.metallicRoughnessTextureRaw->data.end());
-            // ミップレベルの計算を追加
+            
             uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(
                 std::max(material.metallicRoughnessTextureRaw->width, material.metallicRoughnessTextureRaw->height)))) + 1;
             
@@ -596,16 +640,51 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 vk::BorderColor::eFloatOpaqueBlack,
                 VK_FALSE);
             material.metallicRoughnessTextureSampler = device->createSamplerUnique(samplerCreateInfo);
-
-            imageInfos.push_back(vk::DescriptorImageInfo(
-                material.metallicRoughnessTextureSampler.get(),
-                material.metallicRoughnessTextureView.get(),
-                vk::ImageLayout::eShaderReadOnlyOptimal));
+        } else {
+            // ダミーテクスチャを作成
+            std::cout << "MetallicRoughnessテクスチャにダミーテクスチャを使用します" << std::endl;
+            
+            // データを追加
+            textureData.insert(textureData.end(), defaultMetallicRoughnessPixels, defaultMetallicRoughnessPixels + 4);
+            
+            // 1x1ピクセルのテクスチャを作成
+            material.metallicRoughnessTexture = createImage(1, 1, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, 
+                                                           vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
+            material.metallicRoughnessTextureView = createImageView(material.metallicRoughnessTexture.first.get(), 
+                                                                   vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor);
+            
+            // サンプラー作成
+            vk::SamplerCreateInfo samplerCreateInfo(
+                {},
+                vk::Filter::eLinear,         // magFilter
+                vk::Filter::eLinear,         // minFilter
+                vk::SamplerMipmapMode::eLinear,
+                vk::SamplerAddressMode::eRepeat,
+                vk::SamplerAddressMode::eRepeat,
+                vk::SamplerAddressMode::eRepeat,
+                0.0f,                        // mipLodBias
+                VK_TRUE,                     // anisotropyEnable
+                maxAnisotropy,               // maxAnisotropy
+                VK_FALSE,
+                vk::CompareOp::eAlways,
+                0.0f,                        // minLod
+                1.0f,                        // maxLod - ダミーテクスチャは1レベルのみ
+                vk::BorderColor::eFloatOpaqueBlack,
+                VK_FALSE);
+            material.metallicRoughnessTextureSampler = device->createSamplerUnique(samplerCreateInfo);
         }
+        
+        // 共通処理：イメージ情報をデスクリプタに追加
+        imageInfos.push_back(vk::DescriptorImageInfo(
+            material.metallicRoughnessTextureSampler.get(),
+            material.metallicRoughnessTextureView.get(),
+            vk::ImageLayout::eShaderReadOnlyOptimal));
 
+        // === Normalテクスチャの処理 ===
         if (material.normalTextureRaw.has_value()) {
+            // 通常のテクスチャ処理
             textureData.insert(textureData.end(), material.normalTextureRaw->data.begin(), material.normalTextureRaw->data.end());
-            // ミップレベルの計算を追加
+            
             uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(
                 std::max(material.normalTextureRaw->width, material.normalTextureRaw->height)))) + 1;
             
@@ -635,16 +714,51 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 vk::BorderColor::eFloatOpaqueBlack,
                 VK_FALSE);
             material.normalTextureSampler = device->createSamplerUnique(samplerCreateInfo);
-
-            imageInfos.push_back(vk::DescriptorImageInfo(
-                material.normalTextureSampler.get(),
-                material.normalTextureView.get(),
-                vk::ImageLayout::eShaderReadOnlyOptimal));
+        } else {
+            // ダミーテクスチャを作成
+            std::cout << "Normalテクスチャにダミーテクスチャを使用します" << std::endl;
+            
+            // データを追加
+            textureData.insert(textureData.end(), defaultNormalPixels, defaultNormalPixels + 4);
+            
+            // 1x1ピクセルのテクスチャを作成
+            material.normalTexture = createImage(1, 1, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, 
+                                               vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
+            material.normalTextureView = createImageView(material.normalTexture.first.get(), 
+                                                       vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor);
+            
+            // サンプラー作成
+            vk::SamplerCreateInfo samplerCreateInfo(
+                {},
+                vk::Filter::eLinear,         // magFilter
+                vk::Filter::eLinear,         // minFilter
+                vk::SamplerMipmapMode::eLinear,
+                vk::SamplerAddressMode::eRepeat,
+                vk::SamplerAddressMode::eRepeat,
+                vk::SamplerAddressMode::eRepeat,
+                0.0f,                        // mipLodBias
+                VK_TRUE,                     // anisotropyEnable
+                maxAnisotropy,               // maxAnisotropy
+                VK_FALSE,
+                vk::CompareOp::eAlways,
+                0.0f,                        // minLod
+                1.0f,                        // maxLod - ダミーテクスチャは1レベルのみ
+                vk::BorderColor::eFloatOpaqueBlack,
+                VK_FALSE);
+            material.normalTextureSampler = device->createSamplerUnique(samplerCreateInfo);
         }
+        
+        // 共通処理：イメージ情報をデスクリプタに追加
+        imageInfos.push_back(vk::DescriptorImageInfo(
+            material.normalTextureSampler.get(),
+            material.normalTextureView.get(),
+            vk::ImageLayout::eShaderReadOnlyOptimal));
 
+        // === Occlusionテクスチャの処理 ===
         if (material.occlusionTextureRaw.has_value()) {
+            // 通常のテクスチャ処理
             textureData.insert(textureData.end(), material.occlusionTextureRaw->data.begin(), material.occlusionTextureRaw->data.end());
-            // ミップレベルの計算を追加
+            
             uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(
                 std::max(material.occlusionTextureRaw->width, material.occlusionTextureRaw->height)))) + 1;
             
@@ -674,16 +788,51 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 vk::BorderColor::eFloatOpaqueBlack,
                 VK_FALSE);
             material.occlusionTextureSampler = device->createSamplerUnique(samplerCreateInfo);
-
-            imageInfos.push_back(vk::DescriptorImageInfo(
-                material.occlusionTextureSampler.get(),
-                material.occlusionTextureView.get(),
-                vk::ImageLayout::eShaderReadOnlyOptimal));
+        } else {
+            // ダミーテクスチャを作成
+            std::cout << "Occlusionテクスチャにダミーテクスチャを使用します" << std::endl;
+            
+            // データを追加
+            textureData.insert(textureData.end(), defaultOcclusionPixels, defaultOcclusionPixels + 4);
+            
+            // 1x1ピクセルのテクスチャを作成
+            material.occlusionTexture = createImage(1, 1, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, 
+                                                  vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
+            material.occlusionTextureView = createImageView(material.occlusionTexture.first.get(), 
+                                                          vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor);
+            
+            // サンプラー作成
+            vk::SamplerCreateInfo samplerCreateInfo(
+                {},
+                vk::Filter::eLinear,         // magFilter
+                vk::Filter::eLinear,         // minFilter
+                vk::SamplerMipmapMode::eLinear,
+                vk::SamplerAddressMode::eRepeat,
+                vk::SamplerAddressMode::eRepeat,
+                vk::SamplerAddressMode::eRepeat,
+                0.0f,                        // mipLodBias
+                VK_TRUE,                     // anisotropyEnable
+                maxAnisotropy,               // maxAnisotropy
+                VK_FALSE,
+                vk::CompareOp::eAlways,
+                0.0f,                        // minLod
+                1.0f,                        // maxLod - ダミーテクスチャは1レベルのみ
+                vk::BorderColor::eFloatOpaqueBlack,
+                VK_FALSE);
+            material.occlusionTextureSampler = device->createSamplerUnique(samplerCreateInfo);
         }
+        
+        // 共通処理：イメージ情報をデスクリプタに追加
+        imageInfos.push_back(vk::DescriptorImageInfo(
+            material.occlusionTextureSampler.get(),
+            material.occlusionTextureView.get(),
+            vk::ImageLayout::eShaderReadOnlyOptimal));
 
+        // === Emissiveテクスチャの処理 ===
         if (material.emissiveTextureRaw.has_value()) {
+            // 通常のテクスチャ処理
             textureData.insert(textureData.end(), material.emissiveTextureRaw->data.begin(), material.emissiveTextureRaw->data.end());
-            // ミップレベルの計算を追加
+            
             uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(
                 std::max(material.emissiveTextureRaw->width, material.emissiveTextureRaw->height)))) + 1;
             
@@ -713,13 +862,47 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
                 vk::BorderColor::eFloatOpaqueBlack,
                 VK_FALSE);
             material.emissiveTextureSampler = device->createSamplerUnique(samplerCreateInfo);
-
-            imageInfos.push_back(vk::DescriptorImageInfo(
-                material.emissiveTextureSampler.get(),
-                material.emissiveTextureView.get(),
-                vk::ImageLayout::eShaderReadOnlyOptimal));
+        } else {
+            // ダミーテクスチャを作成
+            std::cout << "Emissiveテクスチャにダミーテクスチャを使用します" << std::endl;
+            
+            // データを追加
+            textureData.insert(textureData.end(), defaultEmissivePixels, defaultEmissivePixels + 4);
+            
+            // 1x1ピクセルのテクスチャを作成
+            material.emissiveTexture = createImage(1, 1, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, 
+                                                 vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst);
+            material.emissiveTextureView = createImageView(material.emissiveTexture.first.get(), 
+                                                         vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor);
+            
+            // サンプラー作成
+            vk::SamplerCreateInfo samplerCreateInfo(
+                {},
+                vk::Filter::eLinear,         // magFilter
+                vk::Filter::eLinear,         // minFilter
+                vk::SamplerMipmapMode::eLinear,
+                vk::SamplerAddressMode::eRepeat,
+                vk::SamplerAddressMode::eRepeat,
+                vk::SamplerAddressMode::eRepeat,
+                0.0f,                        // mipLodBias
+                VK_TRUE,                     // anisotropyEnable
+                maxAnisotropy,               // maxAnisotropy
+                VK_FALSE,
+                vk::CompareOp::eAlways,
+                0.0f,                        // minLod
+                1.0f,                        // maxLod - ダミーテクスチャは1レベルのみ
+                vk::BorderColor::eFloatOpaqueBlack,
+                VK_FALSE);
+            material.emissiveTextureSampler = device->createSamplerUnique(samplerCreateInfo);
         }
+        
+        // 共通処理：イメージ情報をデスクリプタに追加
+        imageInfos.push_back(vk::DescriptorImageInfo(
+            material.emissiveTextureSampler.get(),
+            material.emissiveTextureView.get(),
+            vk::ImageLayout::eShaderReadOnlyOptimal));
 
+        // デスクリプタプールの作成と割り当て
         descriptorPoolSizes.push_back(vk::DescriptorPoolSize(vk::DescriptorType::eCombinedImageSampler, 5));
 
         vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 1, descriptorPoolSizes.size(), descriptorPoolSizes.data());
@@ -741,50 +924,76 @@ void VulkanApp::transferTexture(const pl::ModelData &model) {
 
         device->updateDescriptorSets(1, &writeDescriptorSet, 0, nullptr);
 
-        // ステージングバッファの作成とデータ転送
-        std::cout << "Texture Data Size: " << textureData.size() * sizeof(uint8_t) << std::endl;
-        auto stagingBuffer = createBuffer({}, textureData.size() * sizeof(uint8_t), vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible, vk::SharingMode::eExclusive);
-        void *stagingBufferMem = device->mapMemory(stagingBuffer.second.get(), 0, textureData.size() * sizeof(uint8_t));
-        std::memcpy(stagingBufferMem, textureData.data(), textureData.size() * sizeof(uint8_t));
-        device->unmapMemory(stagingBuffer.second.get());
+        // テクスチャデータがある場合のみステージングバッファを作成
+        if (!textureData.empty()) {
+            std::cout << "Texture Data Size: " << textureData.size() * sizeof(uint8_t) << std::endl;
+            auto stagingBuffer = createBuffer({}, textureData.size() * sizeof(uint8_t), vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible, vk::SharingMode::eExclusive);
+            void *stagingBufferMem = device->mapMemory(stagingBuffer.second.get(), 0, textureData.size() * sizeof(uint8_t));
+            std::memcpy(stagingBufferMem, textureData.data(), textureData.size() * sizeof(uint8_t));
+            device->unmapMemory(stagingBuffer.second.get());
 
-        // コマンドバッファの準備
-        std::pair<vk::UniqueCommandPool, std::vector<vk::UniqueCommandBuffer>> commandBuffers = createCommandBuffers(vk::CommandPoolCreateFlagBits::eResetCommandBuffer, queueCreateInfos[0], 1);
-        vk::CommandBufferBeginInfo beginInfo;
-        beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
-        commandBuffers.second[0]->begin(beginInfo);
+            // コマンドバッファの準備
+            std::pair<vk::UniqueCommandPool, std::vector<vk::UniqueCommandBuffer>> commandBuffers = createCommandBuffers(vk::CommandPoolCreateFlagBits::eResetCommandBuffer, queueCreateInfos[0], 1);
+            vk::CommandBufferBeginInfo beginInfo;
+            beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
+            commandBuffers.second[0]->begin(beginInfo);
 
-        vk::DeviceSize offset = 0;
+            vk::DeviceSize offset = 0;
 
-        // 各テクスチャのコピーとミップマップ生成
-        if (material.baseColorTextureRaw.has_value()) {
-            copyTexture(commandBuffers.second[0].get(), material, material.baseColorTexture.first.get(), stagingBuffer.first.get(), offset, material.baseColorTextureRaw->width, material.baseColorTextureRaw->height);
-            offset += material.baseColorTextureRaw->data.size() * sizeof(uint8_t);
-        }
-        if (material.metallicRoughnessTextureRaw.has_value()) {
-            copyTexture(commandBuffers.second[0].get(), material, material.metallicRoughnessTexture.first.get(), stagingBuffer.first.get(), offset, material.metallicRoughnessTextureRaw->width, material.metallicRoughnessTextureRaw->height);
-            offset += material.metallicRoughnessTextureRaw->data.size() * sizeof(uint8_t);
-        }
-        if (material.normalTextureRaw.has_value()) {
-            copyTexture(commandBuffers.second[0].get(), material, material.normalTexture.first.get(), stagingBuffer.first.get(), offset, material.normalTextureRaw->width, material.normalTextureRaw->height);
-            offset += material.normalTextureRaw->data.size() * sizeof(uint8_t);
-        }
-        if (material.occlusionTextureRaw.has_value()) {
-            copyTexture(commandBuffers.second[0].get(), material, material.occlusionTexture.first.get(), stagingBuffer.first.get(), offset, material.occlusionTextureRaw->width, material.occlusionTextureRaw->height);
-            offset += material.occlusionTextureRaw->data.size() * sizeof(uint8_t);
-        }
-        if (material.emissiveTextureRaw.has_value()) {
-            copyTexture(commandBuffers.second[0].get(), material, material.emissiveTexture.first.get(), stagingBuffer.first.get(), offset, material.emissiveTextureRaw->width, material.emissiveTextureRaw->height);
-            offset += material.emissiveTextureRaw->data.size() * sizeof(uint8_t);
-        }
+            // 各テクスチャのコピーとミップマップ生成
+            if (material.baseColorTexture.first) {
+                int width = material.baseColorTextureRaw.has_value() ? material.baseColorTextureRaw->width : 1;
+                int height = material.baseColorTextureRaw.has_value() ? material.baseColorTextureRaw->height : 1;
+                copyTexture(commandBuffers.second[0].get(), material, material.baseColorTexture.first.get(), 
+                           stagingBuffer.first.get(), offset, width, height);
+                offset += material.baseColorTextureRaw.has_value() ? 
+                         material.baseColorTextureRaw->data.size() * sizeof(uint8_t) : 4;
+            }
+            
+            if (material.metallicRoughnessTexture.first) {
+                int width = material.metallicRoughnessTextureRaw.has_value() ? material.metallicRoughnessTextureRaw->width : 1;
+                int height = material.metallicRoughnessTextureRaw.has_value() ? material.metallicRoughnessTextureRaw->height : 1;
+                copyTexture(commandBuffers.second[0].get(), material, material.metallicRoughnessTexture.first.get(), 
+                           stagingBuffer.first.get(), offset, width, height);
+                offset += material.metallicRoughnessTextureRaw.has_value() ? 
+                         material.metallicRoughnessTextureRaw->data.size() * sizeof(uint8_t) : 4;
+            }
+            
+            if (material.normalTexture.first) {
+                int width = material.normalTextureRaw.has_value() ? material.normalTextureRaw->width : 1;
+                int height = material.normalTextureRaw.has_value() ? material.normalTextureRaw->height : 1;
+                copyTexture(commandBuffers.second[0].get(), material, material.normalTexture.first.get(), 
+                           stagingBuffer.first.get(), offset, width, height);
+                offset += material.normalTextureRaw.has_value() ? 
+                         material.normalTextureRaw->data.size() * sizeof(uint8_t) : 4;
+            }
+            
+            if (material.occlusionTexture.first) {
+                int width = material.occlusionTextureRaw.has_value() ? material.occlusionTextureRaw->width : 1;
+                int height = material.occlusionTextureRaw.has_value() ? material.occlusionTextureRaw->height : 1;
+                copyTexture(commandBuffers.second[0].get(), material, material.occlusionTexture.first.get(), 
+                           stagingBuffer.first.get(), offset, width, height);
+                offset += material.occlusionTextureRaw.has_value() ? 
+                         material.occlusionTextureRaw->data.size() * sizeof(uint8_t) : 4;
+            }
+            
+            if (material.emissiveTexture.first) {
+                int width = material.emissiveTextureRaw.has_value() ? material.emissiveTextureRaw->width : 1;
+                int height = material.emissiveTextureRaw.has_value() ? material.emissiveTextureRaw->height : 1;
+                copyTexture(commandBuffers.second[0].get(), material, material.emissiveTexture.first.get(), 
+                           stagingBuffer.first.get(), offset, width, height);
+                offset += material.emissiveTextureRaw.has_value() ? 
+                         material.emissiveTextureRaw->data.size() * sizeof(uint8_t) : 4;
+            }
 
-        // コマンド実行
-        commandBuffers.second[0]->end();
+            // コマンド実行
+            commandBuffers.second[0]->end();
 
-        vk::CommandBuffer submitCmdBuf[1] = {commandBuffers.second[0].get()};
-        vk::SubmitInfo submitInfo(0, nullptr, nullptr, 1, submitCmdBuf, 0, nullptr);
-        graphicsQueues[0].submit(submitInfo, nullptr);
-        graphicsQueues[0].waitIdle();
+            vk::CommandBuffer submitCmdBuf[1] = {commandBuffers.second[0].get()};
+            vk::SubmitInfo submitInfo(0, nullptr, nullptr, 1, submitCmdBuf, 0, nullptr);
+            graphicsQueues[0].submit(submitInfo, nullptr);
+            graphicsQueues[0].waitIdle();
+        }
         
         // 転送後にテクスチャデータをクリア（オプション）
         imageInfos.clear();

@@ -62,8 +62,8 @@ void main() {
             vec3 viewNormal = normalize((push.view * vec4(normal, 0.0)).xyz);
             vec4 extrudedPos = pos + vec4(viewNormal.xy * inOutlineWidth[i] * pos.w, 0.0, 0.0);
             
-            // 深度値を遠くに移動（Z-fightingの防止）- 値を大きくする
-            extrudedPos.z += 0.005 * extrudedPos.w; // 0.001から0.005に増加
+            // // 深度値を遠くに移動（Z-fightingの防止）- 値を大きくする
+            // extrudedPos.z += 0.005 * extrudedPos.w; // 0.001から0.005に増加
             
             gl_Position = extrudedPos;
             EmitVertex();

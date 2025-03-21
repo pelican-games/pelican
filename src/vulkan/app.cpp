@@ -1443,6 +1443,8 @@ void VulkanApp::setLine(glm::vec4 color, float width) {
 void VulkanApp::drawModel(const Model &model, glm::mat4x4 modelMatrix) {
     InstanceAttribute attr;
     attr.model = modelMatrix;
+    attr.lineColor = vpMatrix.lineColor;
+    attr.lineWidth = vpMatrix.lineWidth;
     model.pDat->instanceAttributes.push_back(attr);
 }
 

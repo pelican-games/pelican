@@ -152,6 +152,8 @@ struct Transform {
 
 struct InstanceAttribute {
     glm::mat4 model;
+    glm::vec4 lineColor;
+    float lineWidth;
 };
 
 struct InstanceUpdate {
@@ -166,7 +168,7 @@ struct Object {
     Transform transform;
 
     static vk::VertexInputBindingDescription getBindingDescription() {
-        return vk::VertexInputBindingDescription(1, sizeof(glm::vec4) * 4, vk::VertexInputRate::eInstance);
+        return vk::VertexInputBindingDescription(1, sizeof(InstanceAttribute), vk::VertexInputRate::eInstance);
     }
 
     static std::vector<vk::VertexInputAttributeDescription> getAttributeDescriptions() {
@@ -174,7 +176,9 @@ struct Object {
             vk::VertexInputAttributeDescription(7, 1, vk::Format::eR32G32B32A32Sfloat, 0),
             vk::VertexInputAttributeDescription(8, 1, vk::Format::eR32G32B32A32Sfloat, sizeof(glm::vec4)),
             vk::VertexInputAttributeDescription(9, 1, vk::Format::eR32G32B32A32Sfloat, 2 * sizeof(glm::vec4)),
-            vk::VertexInputAttributeDescription(10, 1, vk::Format::eR32G32B32A32Sfloat, 3 * sizeof(glm::vec4))
+            vk::VertexInputAttributeDescription(10, 1, vk::Format::eR32G32B32A32Sfloat, 3 * sizeof(glm::vec4)),
+            vk::VertexInputAttributeDescription(11, 1, vk::Format::eR32G32B32A32Sfloat, offsetof(InstanceAttribute, lineColor)),
+            vk::VertexInputAttributeDescription(12, 1, vk::Format::eR32Sfloat, offsetof(InstanceAttribute, lineWidth)),
         };
     }
 };

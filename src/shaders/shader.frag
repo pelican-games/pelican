@@ -24,7 +24,7 @@ layout(set = 0, binding = 6) uniform samplerCube prefilteredMap;
 layout(set = 0, binding = 7) uniform sampler2D brdfLUT;
 
 // 光源情報をハードコーディング
-const int LIGHT_COUNT = 3; // 光源の数
+const int LIGHT_COUNT = 6; // 光源の数
 
 // ポイントライトの構造体定義
 struct PointLight {
@@ -52,6 +52,21 @@ const PointLight lights[LIGHT_COUNT] = PointLight[](
         vec3(0.0, 5.0, -2.0), // 位置
         vec3(1.0, 1.0, 1.0),  // 赤っぽい光
         10.0                  // 強度
+    ),
+    PointLight(
+        vec3(0.0, 0.0, 300),  // 位置
+        vec3(0.5373, 1.0, 0.8157),  // 暖色系の光
+        10000                  // 強度
+    ),
+    PointLight(
+        vec3(65,-35,80),  // 位置
+        vec3(0.5373, 1.0, 0.8157),  // 暖色系の光
+        5000                  // 強度
+    ),
+    PointLight(
+        vec3(65, 35, 80),  // 位置
+        vec3(0.5373, 1.0, 0.8157),  // 暖色系の光
+        7000                  // 強度
     )
 );
 

@@ -29,7 +29,10 @@ int main() {
             //renderer.drawModel(test_model, glm::identity<glm::mat4>());
 
             glm::mat4 model_matrix = glm::translate(glm::identity<glm::mat4>(), glm::vec3(+2, 0, 0)) * glm::scale(glm::identity<glm::mat4>(), glm::vec3(1)); 
+            
+            renderer.setSubColor(glm::vec4(0.0, 1.0, 0.0, 1.0));
             renderer.drawModel(test_model2, model_matrix);
+            renderer.setSubColor(glm::vec4(1.0, 1.0, 1.0, 1.0));
 
             model_matrix = glm::translate(glm::identity<glm::mat4>(), glm::vec3(-2, 0, 0)) * glm::scale(glm::identity<glm::mat4>(), glm::vec3(1)); 
             renderer.setLine(glm::vec4(0.0, 1.0, 0.0, 1.0), 0.01);

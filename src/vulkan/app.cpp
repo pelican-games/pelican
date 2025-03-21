@@ -9,7 +9,7 @@
 namespace pl {
 
 VulkanApp::VulkanApp(GLFWwindow *window, unsigned int screenWidth, unsigned int screenHeight)
-    : window(window), screenWidth{screenWidth}, screenHeight{screenHeight} {
+    : window(window), screenWidth{screenWidth}, screenHeight{screenHeight}, currentSubColor{1.0, 1.0, 1.0, 1.0} {
     std::cout << "Vulkan Header Version: " << VK_HEADER_VERSION << std::endl;
 
     // APIバージョンのプリント（ヘッダーで定義された最新のAPIバージョンを表示）
@@ -1440,12 +1440,16 @@ void VulkanApp::setLine(glm::vec4 color, float width) {
     vpMatrix.lineWidth = width;
 }
 
+void VulkanApp::setSubColor(glm::vec4 color) {
+    currentSubColor = color;
+}
+
 void VulkanApp::drawModel(const Model &model, glm::mat4x4 modelMatrix) {
     InstanceAttribute attr;
     attr.model = modelMatrix;
     attr.lineColor = vpMatrix.lineColor;
     attr.lineWidth = vpMatrix.lineWidth;
-    attr.subColor = glm::vec4{1.0, 0.0, 0.0, 1.0};
+    attr.subColor = currentSubColor;
     model.pDat->instanceAttributes.push_back(attr);
 }
 

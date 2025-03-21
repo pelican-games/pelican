@@ -33,6 +33,7 @@ class Renderer {
     virtual void drawFrame() = 0;
     virtual void setViewport(int x, int y, int w, int h) = 0;
     virtual void setLine(glm::vec4 color, float width) = 0;
+    virtual void setSubColor(glm::vec4 subColor = {1.0, 1.0, 1.0, 1.0}) = 0;
     virtual ~Renderer() = default;
 };
 

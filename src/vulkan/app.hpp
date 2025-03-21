@@ -24,6 +24,7 @@ class VulkanApp : public pl::Renderer {
         pl::ModelDataBase modelDb;
 
         pl::VPMatrix vpMatrix;
+        glm::vec4 currentSubColor;
 
     public:
         VulkanApp(GLFWwindow* window, unsigned int screenWidth, unsigned int screenHeight);
@@ -139,6 +140,7 @@ class VulkanApp : public pl::Renderer {
         //void loadObject(std::filesystem::path file_path) override;
         void setViewport(int x, int y, int w, int h) override;
         void setLine(glm::vec4 color, float width) override;
+        void setSubColor(glm::vec4 color) override;
 
         void drawUIImage(const UIImage &image, int x, int y, int texX, int texY, int texW, int texH, float scaleX, float scaleY);
         pl::UIImage loadUIImage(std::filesystem::path file_path);
